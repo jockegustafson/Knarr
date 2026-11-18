@@ -56,9 +56,21 @@ The word list is either a Praat TextGrid (its first interval tier, or the one na
 the columns `start`, `end` and optionally `word`. The output is a TSV with one row per word: word, start, end, score, status, n_support.
 To get a TextGrid back with a `creak` tier added: `python examples/score_textgrid.py dialog.wav dialog.TextGrid --tier words`.
 
+## Try it in the browser
+
+```bash
+knarr-demo            # opens http://localhost:8765 ; --model f4n2, --device cpu|mps|cuda, --port N
+```
+
+A local page: record from the microphone or load an audio file, and get its spectrogram with the creak decisions on top (orange bands
+where the score passes the threshold slider), the score curve under it, and, if you also load a TextGrid or TSV with word times, a score
+per word. Click the picture to play from that point. Everything runs on your machine; nothing is uploaded anywhere. The microphone only
+works when the page is opened as `http://localhost` (from another machine, load files instead). The curve scores 0.2 s windows every
+50 ms with the word rule, which shows where creak is; the validated use is scoring aligned words.
+
 ## Which model, and what the scores mean
 
-Use **Knarr** for Swedish conversation. AUC below is measured on the lab's Swedish test set: 274 words from Spontal, and other Swedish corpora, labelled by ear, never used in training (1.0 is perfect, 0.5 is chance).
+Use **Knarr** for Swedish conversation. AUC below is measured on the lab's Swedish test set: 274 words from Spontal and other Swedish dialogue corpora, labelled by ear, never used in training (1.0 is perfect, 0.5 is chance).
 
 | Model | Trained on | Voicing check | Swedish test AUC | Women | Men |
 | --- | --- | --- | --- | --- | --- |

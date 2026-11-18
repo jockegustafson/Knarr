@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "knarr"
+version = "1.0.0"
+description = "Knarr and F4N2 creak (vocal fry) word detectors for conversational speech"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy", "scipy", "soundfile", "torch>=2.0", "transformers>=4.30"]
+
+[project.optional-dependencies]
+gate = ["pyreaper", "setuptools<81"]
+
+[project.scripts]
+knarr = "knarr.cli:main"
+
+[tool.setuptools]
+packages = ["knarr"]
+
+[tool.setuptools.package-data]
+knarr = ["weights/*.npz", "weights/*.json"]

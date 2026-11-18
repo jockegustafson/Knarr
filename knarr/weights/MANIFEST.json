@@ -1,0 +1,26 @@
+{
+ "release": "f4n2_v1",
+ "date": "2026-10-30",
+ "seeds": [
+  "F4N2_s1",
+  "F4N2_s2",
+  "F4N2_s3"
+ ],
+ "npz_sha256": "89eae638e8e6fbf6d6bc4f3c9ea88ec7b632130af916ff9834e930ca066e2f04",
+ "source_checkpoints": {
+  "F4N2_s1": "33150a506916089277294a10d902573c28ad1066e4233367f45078676c71389f",
+  "F4N2_s2": "54adab89df5f4fda7caf73ab9c21c4170cd301f37a8a375b70ad42917d1d40a6",
+  "F4N2_s3": "4832a41028bd9f25a8010f458b2379977ffb6ac0e6381f1e87b949590128be5b"
+ },
+ "wavlm": {
+  "repo": "microsoft/wavlm-large",
+  "revision": "c1423ed94bb01d80a3f5ce5bc39f6026a0f4828c",
+  "layers": [
+   0,
+   3
+  ]
+ },
+ "word_rule": "per seed: 150-frame window centred on the word (mc_train.human_batch_fixed geometry, raw pad 0.0), sigmoid(perc), mean of the top-3 kept frames in the word; then the mean over seeds",
+ "gate_rule": "gate V: model frame kept if a REAPER-low (minf0 25, maxf0 500) voiced time lies within +-15 ms of its centre; >= 2 kept frames, else INSUFFICIENT_SUPPORT",
+ "threshold_provenance": "no operating threshold is part of the release; the final-test tau_high 0.30995 is an F4 (not F4N2) EARS-pool percentile and must not be reused as an F4N2 probability"
+}

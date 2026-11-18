@@ -58,8 +58,7 @@ To get a TextGrid back with a `creak` tier added: `python examples/score_textgri
 
 ## Which model, and what the scores mean
 
-Use **Knarr** for Swedish conversation. AUC below is measured on the lab's Swedish test set: 274 words from Spontal, SR interviews,
-Spanarna and Nord-Parl, labelled by ear, never used in training (1.0 is perfect, 0.5 is chance).
+Use **Knarr** for Swedish conversation. AUC below is measured on the lab's Swedish test set: 274 words from Spontal, and other Swedish corpora, labelled by ear, never used in training (1.0 is perfect, 0.5 is chance).
 
 | Model | Trained on | Voicing check | Swedish test AUC | Women | Men |
 | --- | --- | --- | --- | --- | --- |

@@ -30,7 +30,7 @@ def _weights(model="f4n2"):
 
 class CreakDetector:
     """Creak word detector.
-    model: "knarr" (default) = Knarr v2, F4N2 fine-tuned on Swedish dialogue with channel augmentation (2026-11-19; Swedish test set
+    model: "knarr" (default) = Knarr v2, F4N2 trained further on its own data plus Swedish dialogue, with channel augmentation (2026-11-19; Swedish test set
            AUC 0.881 vs 0.796 for gated F4N2, pool-weighted 0.881 vs 0.740; scores stable under mp3, phone band, noise and reverb);
            "knarr_e" = the first Knarr (2026-11-18, AUC 0.874); both meant to be used without the voicing gate;
            "f4n2" = Joakim Gustafson's release f4n2_v1.

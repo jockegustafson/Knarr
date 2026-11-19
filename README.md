@@ -1,7 +1,28 @@
-# Knarr: creak detection for conversational speech
+# Knarr
 
-Knarr scores how creaky (vocal fry) each word in a recording is, from 0 (modal) to 1 (creaky). *Knarr* is Swedish for creak. You give it
-an audio file and the start and end times of the words. The package contains two detectors:
+Word-level **creak (vocal fry) detection for conversational speech**. Knarr scores how creaky each word sounds, from 0 (modal) to 1
+(creaky), from the audio and the words' start and end times. On a held-out Swedish dialogue test set (274 words labelled by ear) it
+reaches **AUC 0.88**, against 0.80 for F4N2, 0.79 for DeepFry and 0.66 for CreaPy on the same words, and its scores stay level on mp3,
+phone-band, noisy and reverberant audio. A 10-minute file takes a few seconds on a GPU. *Knarr* is Swedish for creak.
+
+```bash
+pip install "knarr[gate] @ git+https://github.com/jockegustafson/Knarr.git"
+knarr dialog.wav words.tsv -o creak.tsv      # word list as TSV (word, start, end) or a Praat TextGrid (--tier words)
+knarr-demo                                   # local web page: record or load audio, see the creak on a spectrogram
+```
+
+```
+word     start  end    score  status
+Hej,     2.580  3.600  0.00   ok
+förstår  4.460  4.900  0.00   ok
+säger.   5.060  5.460  0.59   ok
+här      5.900  6.040  0.00   ok
+ut.      6.340  6.680  0.71   ok
+```
+
+Five of the 17 words of a 7-second Swedish recording: the two phrase ends, *säger.* and *ut.*, are creaky, the rest is modal.
+
+The package contains two detectors:
 
 - **Knarr** (default, version 2): F4N2 trained further. F4N2's own labelled words and EGG data stay in its training, and Swedish
   spontaneous dialogue (Spontal, SR interviews) is added, with glottal-cycle (VoiceMapping) and DeepFry frame targets. It is also trained

@@ -81,7 +81,7 @@ def main():
     global DET
     ap = argparse.ArgumentParser(description="Knarr creak demo page (local)")
     ap.add_argument("--port", type=int, default=8765); ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--model", default="knarr", choices=["knarr", "f4n2"]); ap.add_argument("--device"); ap.add_argument("--no-browser", action="store_true")
+    ap.add_argument("--model", default="knarr", choices=["knarr", "knarr_e", "f4n2"]); ap.add_argument("--device"); ap.add_argument("--no-browser", action="store_true")
     a = ap.parse_args()
     from . import CreakDetector
     print("loading the detector and WavLM (first run downloads WavLM-large, ~1.2 GB) ...", flush=True)

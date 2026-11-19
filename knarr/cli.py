@@ -33,7 +33,7 @@ def read_words(path, tier=None):
 def main():
     ap = argparse.ArgumentParser(description="Knarr / F4N2 creak word detector"); ap.add_argument("audio"); ap.add_argument("words")
     ap.add_argument("--channel", type=int); ap.add_argument("--tier"); ap.add_argument("--no-gate", action="store_true")
-    ap.add_argument("--device"); ap.add_argument("-o", "--out"); ap.add_argument("--model", default="knarr", choices=["f4n2", "knarr"])
+    ap.add_argument("--device"); ap.add_argument("-o", "--out"); ap.add_argument("--model", default="knarr", choices=["f4n2", "knarr", "knarr_e"])
     a = ap.parse_args()
     from . import CreakDetector
     det = CreakDetector(device=a.device, gate=False if a.no_gate else None, model=a.model); res = det.score_file(a.audio, read_words(a.words, a.tier), channel=a.channel)

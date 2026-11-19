@@ -11,7 +11,7 @@ from .gate import voiced_for_words
 from .model import INSUFFICIENT_SUPPORT, Net, frame_centres, frame_evidence, score_words
 
 
-MODELS = {"f4n2": ("MANIFEST.json", "f4n2_v1.npz"), "knarr": ("MANIFEST_knarr.json", "knarr_e.npz")}
+MODELS = {"f4n2": ("MANIFEST.json", "f4n2_v1.npz"), "knarr": ("MANIFEST_knarr.json", "knarr_v2.npz"), "knarr_e": ("MANIFEST_knarr_e.json", "knarr_e.npz")}
 
 
 def _weights(model="f4n2"):
@@ -30,8 +30,10 @@ def _weights(model="f4n2"):
 
 class CreakDetector:
     """Creak word detector.
-    model: "knarr" (default) = Knarr e, F4N2 fine-tuned on Swedish dialogue (2026-11-18;
-           Swedish test set AUC 0.874 vs 0.796 for gated F4N2, women 0.887 vs 0.754), meant to be used without the voicing gate; "f4n2" = Joakim Gustafson's release f4n2_v1.
+    model: "knarr" (default) = Knarr v2, F4N2 fine-tuned on Swedish dialogue with channel augmentation (2026-11-19; Swedish test set
+           AUC 0.881 vs 0.796 for gated F4N2, pool-weighted 0.881 vs 0.740; scores stable under mp3, phone band, noise and reverb);
+           "knarr_e" = the first Knarr (2026-11-18, AUC 0.874); both meant to be used without the voicing gate;
+           "f4n2" = Joakim Gustafson's release f4n2_v1.
     device: "cuda", "cuda:1", "mps" or "cpu" (CPU works, about 10x slower for WavLM).
     gate: True = the voicing gate (needs pyreaper; words with < 2 voiced frames get status INSUFFICIENT_SUPPORT); False = score every word.
           Default: True for f4n2 (as released), False for knarr (as trained and tested)."""

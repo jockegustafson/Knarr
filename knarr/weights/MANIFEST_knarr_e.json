@@ -1,0 +1,27 @@
+{
+ "model": "knarr_e",
+ "date": "2026-11-18",
+ "seeds": [
+  "Knarr_e_s1",
+  "Knarr_e_s2",
+  "Knarr_e_s3"
+ ],
+ "npz_sha256": "62240bad16e4a4103ce098431fd0bcae0a0e3cef00a8163c9a59914d12913377",
+ "source_checkpoints": {
+  "Knarr_e_s1": {
+   "best_step": 1500,
+   "sha256": "93ab19f558a27a29a3ac1eebecce2201033abe1db4f19562e54bc367e10d5647"
+  },
+  "Knarr_e_s2": {
+   "best_step": 2000,
+   "sha256": "76797e1555865a4e31e2e0765575e975ed324431458f8e34f236c537671acc94"
+  },
+  "Knarr_e_s3": {
+   "best_step": 2000,
+   "sha256": "c29812b3881b61070d80398e5973d7775de3e102f565602066a2072cb7443aea"
+  }
+ },
+ "what": "Knarr ablation e (TTS report section 60): F4N2 fine-tuned on Swedish dialogue (human labels, agreement pseudo-labels, Spontal in full) with VoiceMapping and DeepFry frame targets",
+ "word_rule": "as F4N2 (150-frame window centred on the word, top-3 frames of the perc head, mean over seeds) but WITHOUT the voicing gate",
+ "test": "Swedish creak test set (274 words, user labels): AUC 0.874 (F4N2 gated 0.796); women 0.887, men 0.887; pool-weighted 0.848"
+}

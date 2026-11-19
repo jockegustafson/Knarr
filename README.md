@@ -3,7 +3,9 @@
 Knarr scores how creaky (vocal fry) each word in a recording is, from 0 (modal) to 1 (creaky). *Knarr* is Swedish for creak. You give it
 an audio file and the start and end times of the words. The package contains two detectors:
 
-- **Knarr** (default): F4N2 fine-tuned on Swedish spontaneous dialogue, with glottal-cycle (VoiceMapping) and DeepFry frame targets.
+- **Knarr** (default, version 2): F4N2 fine-tuned on Swedish spontaneous dialogue, with glottal-cycle (VoiceMapping) and DeepFry frame
+  targets, and trained on degraded copies of its audio (mp3, phone band, noise, reverb) so its scores hold on radio, podcast and phone
+  recordings. `model="knarr_e"` gives the first Knarr (2026-11-18) for reproducing earlier results.
 - **F4N2**: Joakim Gustafson's original detector (WavLM-large layers 0 + 3, three seeds, pretrained on EGG targets, fine-tuned on human
   creak labels, mostly English).
 
@@ -75,14 +77,22 @@ Use **Knarr** for Swedish conversation. AUC below is measured on the lab's Swedi
 | Model | Trained on | Voicing check | Swedish test AUC | Women | Men |
 | --- | --- | --- | --- | --- | --- |
 | F4N2 | mostly English, plus EGG recordings | on | 0.80 | 0.75 | 0.84 |
-| Knarr | F4N2 + Swedish dialogue labels and glottal-cycle targets | off | 0.87 | 0.89 | 0.89 |
+| Knarr e (first version) | F4N2 + Swedish dialogue labels and glottal-cycle targets | off | 0.874 | 0.89 | 0.89 |
+| **Knarr v2** (default) | Knarr e + channel augmentation | off | **0.881** | 0.90 | 0.89 |
+
+On recordings weighted as they occur in the corpora (pool-weighted AUC), Knarr v2 reaches 0.88, Knarr e 0.85 and F4N2 0.74.
+
+**Robustness** (198 development words, each clip degraded eight ways: mp3 at 32 and 64 kbit/s, phone band with mu-law, 4 kHz low-pass,
+white noise at 20 and 10 dB, pink noise at 15 dB, reverb with RT60 0.5 s). Ranking hardly changes for either model, but Knarr e's scores
+fell (on average by 0.09, by 0.19 in 10 dB noise), so with a fixed threshold it under-reported creak in noisy or phone-like audio. Knarr v2
+keeps the score level (average change -0.00, mean absolute change 0.07 against 0.12).
 
 - **Scores are word values,** not frame probabilities, and there is no calibrated threshold. 0.5 is a reasonable start; pick your own
   operating point on labelled data.
 - **`INSUFFICIENT_SUPPORT`** (F4N2 only) means the word had fewer than 2 voiced frames, so F4N2 gives no score. About a third of such words
   are creaky; Knarr scores them anyway (AUC about 0.86 on them).
 - **Other languages:** F4N2 was developed mainly on English; Knarr was tested only on Swedish. A multilingual Knarr (Norwegian, Danish,
-  German) is in training.
+  German frame targets) did not improve Swedish and was not adopted; nothing has been tested on other languages yet.
 
 ## If something goes wrong
 
@@ -100,6 +110,11 @@ Use **Knarr** for Swedish conversation. AUC below is measured on the lab's Swedi
 - Knarr: ablation e of the KTH TTS report, section 60 (2026-11-18): F4N2's three seeds fine-tuned for 2,000 steps on Swedish human labels
   (ledger, a correction round), 23,845 agreement pseudo-labels from Spontal and SR interviews, and frame targets from VoiceMapping glottal
   cycles and DeepFry, with F4N2's EGG and non-speech losses kept. Selected on a development split; tested once.
+- Knarr v2 (2026-11-19, section 60.14): as Knarr e, plus channel augmentation (half of all training windows are read from a degraded copy
+  of the clip: mp3 24-96 kbit/s, phone band, 3-6 kHz low-pass, white or pink noise at 5-30 dB SNR, reverb with RT60 0.2-0.9 s, or reverb
+  plus noise; the targets stay those of the clean audio), and without 28 Spontal channels (and the people on them) that are reserved as a
+  test set in the F4N2 project. It replaced Knarr e by a rule fixed before training (development AUC no more than 0.01 lower, smaller score
+  shift under degradation) and was then tested once. `tools/export_knarr_v.py` writes its weights.
 - Weights: `knarr/weights/*.npz` with SHA-256 manifests checked at load time.
 
 Questions and bug reports: Joakim Gustafson, KTH Speech, Music and Hearing.

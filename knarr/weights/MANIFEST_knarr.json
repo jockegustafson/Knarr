@@ -1,27 +1,28 @@
 {
- "model": "knarr_e",
- "date": "2026-11-18",
+ "model": "knarr_v2",
+ "date": "2026-11-19",
  "seeds": [
-  "Knarr_e_s1",
-  "Knarr_e_s2",
-  "Knarr_e_s3"
+  "Knarr_v2_s1",
+  "Knarr_v2_s2",
+  "Knarr_v2_s3"
  ],
- "npz_sha256": "62240bad16e4a4103ce098431fd0bcae0a0e3cef00a8163c9a59914d12913377",
+ "npz_sha256": "8e52f5bd1ee5e1c6d27cb8a647b3c5ad9619bb27428d575c2bb8f0f6f805cf5d",
  "source_checkpoints": {
-  "Knarr_e_s1": {
-   "best_step": 1500,
-   "sha256": "93ab19f558a27a29a3ac1eebecce2201033abe1db4f19562e54bc367e10d5647"
+  "Knarr_v2_s1": {
+   "best_step": 1750,
+   "sha256": "f9d5b5cecda8460217d5e6775bc3d338889ab148f7d9061afa286786ccd42677"
   },
-  "Knarr_e_s2": {
+  "Knarr_v2_s2": {
    "best_step": 2000,
-   "sha256": "76797e1555865a4e31e2e0765575e975ed324431458f8e34f236c537671acc94"
+   "sha256": "1d54308742a263290b8d8e85aaa7c4a6877a1f2b0bc4e44ae34d6419bd440e34"
   },
-  "Knarr_e_s3": {
+  "Knarr_v2_s3": {
    "best_step": 2000,
-   "sha256": "c29812b3881b61070d80398e5973d7775de3e102f565602066a2072cb7443aea"
+   "sha256": "0fe1aae5eb876b9122d7135f5202e6939c0fa523fdce62e978e27f4bc9a3d7e5"
   }
  },
- "what": "Knarr ablation e (TTS report section 60): F4N2 fine-tuned on Swedish dialogue (human labels, agreement pseudo-labels, Spontal in full) with VoiceMapping and DeepFry frame targets",
+ "what": "Knarr v2 (TTS report section 60.14): Knarr e retrained with channel augmentation (mp3, phone band, low-pass, white/pink noise, reverb; half of all training windows read from the degraded copy, clean targets) and without formant_tracker's reserved Spontal SPLIT_V4 TEST channels and persons",
  "word_rule": "as F4N2 (150-frame window centred on the word, top-3 frames of the perc head, mean over seeds) but WITHOUT the voicing gate",
- "test": "Swedish creak test set (274 words, user labels): AUC 0.874 (F4N2 gated 0.796); women 0.887, men 0.887; pool-weighted 0.848"
+ "test": "Swedish creak test set (274 words, user labels): AUC 0.881 (Knarr e 0.874, F4N2 gated 0.796); women 0.895, men 0.893; pool-weighted 0.881",
+ "robustness": "development words, 8 channel conditions: mean |score change| 0.074 (Knarr e 0.123), mean signed change -0.00 (Knarr e -0.09)"
 }

@@ -3,11 +3,14 @@
 Knarr scores how creaky (vocal fry) each word in a recording is, from 0 (modal) to 1 (creaky). *Knarr* is Swedish for creak. You give it
 an audio file and the start and end times of the words. The package contains two detectors:
 
-- **Knarr** (default, version 2): F4N2 fine-tuned on Swedish spontaneous dialogue, with glottal-cycle (VoiceMapping) and DeepFry frame
-  targets, and trained on degraded copies of its audio (mp3, phone band, noise, reverb) so its scores hold on radio, podcast and phone
-  recordings. `model="knarr_e"` gives the first Knarr (2026-11-18) for reproducing earlier results.
-- **F4N2**: Joakim Gustafson's original detector (WavLM-large layers 0 + 3, three seeds, pretrained on EGG targets, fine-tuned on human
-  creak labels, mostly English).
+- **Knarr** (default, version 2): F4N2 trained further. F4N2's own labelled words and EGG data stay in its training, and Swedish
+  spontaneous dialogue (Spontal, SR interviews) is added, with glottal-cycle (VoiceMapping) and DeepFry frame targets. It is also trained
+  on degraded copies of its audio (mp3, phone band, noise, reverb), so its scores hold on radio, podcast and phone recordings.
+  `model="knarr_e"` gives the first Knarr (2026-11-18) for reproducing earlier results.
+- **F4N2**: Joakim Gustafson's original detector (WavLM-large layers 0 + 3, three seeds). It was pretrained on EGG recordings in English,
+  German and Swedish and fine-tuned on words labelled by ear, about 90 % of them English, plus Swedish words and Danish stød.
+
+The corpora behind each model are listed under [Training data](#training-data).
 
 **Licence: non-commercial research use only.** The models were trained on corpora with non-commercial and research-only licences (among
 them EARS, CC BY-NC 4.0, and Swedish research corpora), so the weights and anything derived from them may not be used commercially. Please
@@ -76,8 +79,8 @@ Use **Knarr** for Swedish conversation. AUC below is measured on the lab's Swedi
 
 | Model | Trained on | Voicing check | Swedish test AUC | Women | Men |
 | --- | --- | --- | --- | --- | --- |
-| F4N2 | mostly English, plus EGG recordings | on | 0.80 | 0.75 | 0.84 |
-| Knarr e (first version) | F4N2 + Swedish dialogue labels and glottal-cycle targets | off | 0.874 | 0.89 | 0.89 |
+| F4N2 | labelled words, mostly English; EGG in 3 languages | on | 0.80 | 0.75 | 0.84 |
+| Knarr e (first version) | F4N2's data + Swedish dialogue (labels, pseudo-labels, glottal-cycle targets) | off | 0.874 | 0.89 | 0.89 |
 | **Knarr v2** (default) | Knarr e + channel augmentation | off | **0.881** | 0.90 | 0.89 |
 
 On recordings weighted as they occur in the corpora (pool-weighted AUC), Knarr v2 reaches 0.88, Knarr e 0.85 and F4N2 0.74.
@@ -91,8 +94,29 @@ keeps the score level (average change -0.00, mean absolute change 0.07 against 0
   operating point on labelled data.
 - **`INSUFFICIENT_SUPPORT`** (F4N2 only) means the word had fewer than 2 voiced frames, so F4N2 gives no score. About a third of such words
   are creaky; Knarr scores them anyway (AUC about 0.86 on them).
-- **Other languages:** F4N2 was developed mainly on English; Knarr was tested only on Swedish. A multilingual Knarr (Norwegian, Danish,
+- **Other languages:** F4N2's labels are mostly English, and its direct predecessor F4 was tested on unseen English speakers (EARS, AUROC 0.87);
+  Knarr was tested only on Swedish. A multilingual Knarr (Norwegian, Danish,
   German frame targets) did not improve Swedish and was not adopted; nothing has been tested on other languages yet.
+
+## Training data
+
+Knarr is not trained on Swedish dialogue alone: every Knarr version keeps F4N2's labelled words, EGG targets and non-speech negatives in
+its training and adds the Swedish material. Labels are always the owner's judgements by ear; no detector output is used as a label, except
+the Swedish pseudo-labels, which are words where F4N2 and the glottal-cycle view agree.
+
+| Data | Corpora (language) | Size | F4N2 | Knarr |
+| --- | --- | --- | --- | --- |
+| Words labelled by ear | EARS 488, DAPS 34, AVID 30, TAVA 29, Buckeye 27, CMU ARCTIC 27, MSP-Podcast 17 (English); TINA 36, Martin 10 (Swedish); Joe 12 | 710 judged words, 653 with a clear label | yes | yes |
+| Stød labels | DanPASS audit (Danish) | 71 units | yes | yes |
+| EGG targets (pretraining; a side loss in fine-tuning) | AVID, CMU ARCTIC, PTDB-TUG, TAVA (English), Martin (Swedish), Saarbrücken healthy (German) | 3,000 pretraining steps | yes | AVID, CMU ARCTIC, TAVA, Saarbrücken |
+| Non-speech negatives | DanPASS pauses, ledger silences | – | yes | yes |
+| New Swedish labels | DanPASS 74 and Spontal 50 ledger items; a correction round, Spontal 103 and SR interviews 105 | 332 words | – | yes |
+| Pseudo-labels | Spontal, SR interviews (Swedish) | 23,845 words | – | yes |
+| Glottal-cycle and DeepFry frame targets | Spontal, SR interviews (Swedish) | 10,549 clips + 12,808 utterances (26.6 h) | – | yes |
+| Degraded copies (v2) | the Knarr clips above, mp3 / phone / low-pass / noise / reverb | one copy per clip | – | v2 only |
+
+Tried and not adopted: Buckeye's own creak tags, and Norwegian (NB Samtale), Danish (CoRal) and German (Emilia) frame targets. The
+corpus links and licences are in the F4N2 report (`formant_tracker/docs/F4N2_CREAK_DETECTOR_REPORT.md`, section 3.2).
 
 ## If something goes wrong
 
@@ -107,9 +131,9 @@ keeps the score level (average change -0.00, mean absolute change 0.07 against 0
 
 - F4N2: formant_tracker release `f4n2_v1` (2026-10-30); `knarr/model.py` and `knarr/features.py` are copied unchanged from its scorer,
   and `tools/check_release.py` shows the package reproduces the release's scores (r 0.99997 on 2,147 Spontal words).
-- Knarr: ablation e of the KTH TTS report, section 60 (2026-11-18): F4N2's three seeds fine-tuned for 2,000 steps on Swedish human labels
-  (ledger, a correction round), 23,845 agreement pseudo-labels from Spontal and SR interviews, and frame targets from VoiceMapping glottal
-  cycles and DeepFry, with F4N2's EGG and non-speech losses kept. Selected on a development split; tested once.
+- Knarr: ablation e of the KTH TTS report, section 60 (2026-11-18): F4N2's three seeds trained for 2,000 more steps on F4N2's own 653
+  labelled words and 71 DanPASS stød units plus the Swedish labels (ledger, a correction round), 23,845 agreement pseudo-labels from
+  Spontal and SR interviews, and frame targets from VoiceMapping glottal cycles and DeepFry, with F4N2's EGG and non-speech losses kept. Selected on a development split; tested once.
 - Knarr v2 (2026-11-19, section 60.14): as Knarr e, plus channel augmentation (half of all training windows are read from a degraded copy
   of the clip: mp3 24-96 kbit/s, phone band, 3-6 kHz low-pass, white or pink noise at 5-30 dB SNR, reverb with RT60 0.2-0.9 s, or reverb
   plus noise; the targets stay those of the clean audio), and without 28 Spontal channels (and the people on them) that are reserved as a

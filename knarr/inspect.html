@@ -73,7 +73,7 @@ details ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--
 <body>
 <div class="wrap">
   <h1>/*TITLE*/</h1>
-  <p class="muted">Listen to the <b>highlighted word</b>, then check its voice source in the views below, which share one time axis (0 = word start). Creak shows as widely and irregularly spaced glottal pulses: uneven gaps in the waveform and the period plot, vertical striations far apart or uneven in the wideband spectrogram, pitch dropping low or scattering. Drag across any view to select a stretch, then zoom to it, play it (also at half speed, where single pulses become audible) or mark it as the creaky part. /*NOTE*/</p>
+  <p class="muted">Listen to the <b>highlighted word</b>, then check its voice source in the views below, which share one time axis (0 = word start). Creak shows as widely and irregularly spaced glottal pulses: uneven gaps in the waveform and the period plot, vertical striations far apart or uneven in the wideband spectrogram, pitch dropping low or scattering. A word is <b>creaky</b> when any part of it is creaky; if only part of it is, drag across that part and press <kbd>K</kbd> to mark it. Drag across any view to select a stretch, then zoom to it or play it (also at half speed, where single pulses become audible). /*NOTE*/</p>
   <details><summary>Keys and views</summary><ul>
     <li><kbd>W</kbd> word · <kbd>S</kbd> word at half speed · <kbd>C</kbd> with context · <kbd>L</kbd> loop word · <kbd>P</kbd> play selection · <kbd>Z</kbd> zoom to selection · <kbd>X</kbd> zoom out · <kbd>K</kbd> mark selection as creaky · <kbd>G</kbd> wideband / narrowband</li>
     <li><kbd>1</kbd> creaky · <kbd>2</kbd> not creaky · <kbd>3</kbd> unsure · <kbd>4</kbd> phrase creak · <kbd>5</kbd> glottal onset / stop · <kbd>6</kbd> breathy-creaky · <kbd>←</kbd> <kbd>→</kbd> previous / next</li>
@@ -101,7 +101,7 @@ details ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--
       <div id="head"></div>
     </div>
     <div class="readout" id="read">Hover a view for time and period.</div>
-    <div class="row"><button type="button" id="mk">Mark selection as creaky (K)</button><span id="spans" class="row"></span></div>
+    <div class="row"><button type="button" id="mk">Mark selection as creaky (K)</button><span id="spans" class="row"></span><span class="muted" id="nudge" style="font-size:13px" hidden>Only part of the word creaky? Drag across that part and press K.</span></div>
     <div class="row">
       <button type="button" class="lab c" id="l1" aria-pressed="false">Creaky (1)</button>
       <button type="button" class="lab m" id="l0" aria-pressed="false">Not creaky (2)</button>
@@ -333,6 +333,7 @@ function paintButtons() {
   const it = ITEMS[cur];
   for (const [id, v] of [["l1", "creak"], ["l0", "modal"], ["lu", "unsure"]]) $(id).setAttribute("aria-pressed", String(lab[it.code] === v));
   $("types").hidden = lab[it.code] !== "creak"; for (const [id, v] of TYPES) $(id).setAttribute("aria-pressed", String(typ[it.code] === v));
+  $("nudge").hidden = !(lab[it.code] === "creak" && !(spans[it.code] || []).length);
   $("reveal").hidden = !lab[it.code] || !it.reveal; $("reveal").textContent = it.reveal || "";
   const box = $("spans"); box.replaceChildren();
   (spans[it.code] || []).forEach(([a, b], k) => { const c = document.createElement("span"); c.className = "chip";

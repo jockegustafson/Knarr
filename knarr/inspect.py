@@ -11,7 +11,8 @@ Per word the page shows, on one time axis (0 = word start, the word +- 0.25 s): 
 REAPER's glottal pulse marks (min F0 25 Hz, as the voicing gate); a wideband (4 ms, pulses as vertical striations) or narrowband (30 ms,
 harmonics) spectrogram; the pitch (REAPER F0 line and the pulse rate 1/interval as dots, log 30-400 Hz); and the period of every cycle,
 with a cycle that differs by more than 20 % from the previous one marked. Listening: the word, the word at half speed (pitch an octave
-down, so single pulses become audible), the 2.5 s before it, a loop, or a dragged selection. Labels: creaky / not creaky / unsure, a creak
+down, so single pulses become audible), the 2.5 s before it, a loop, or a dragged selection. Labels: creaky / not creaky / unsure / no speech
+("nospeech": noise or a wrongly timed word, to be left out), a creak
 type (phrase creak, glottal onset or stop, breathy-creaky) and any number of marked creaky stretches inside the word. They are kept in
 the browser (localStorage) and saved with "Download labels (JSON)": [{code, word, src: {audio, start, end}, label, type, spans: [{s, e}]}],
 span times in s from the word start.

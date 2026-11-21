@@ -112,7 +112,7 @@ Each word is shown on one time axis (0 = word start, the word ± 0.25 s) in four
 - **period of every cycle**, with cycles that differ by more than 20 % from the previous one marked.
 
 You can play the word, the word at **half speed** (an octave lower, so single pulses become audible), the 2.5 s before it, a loop, or any
-stretch you drag across. Labels are creaky / not creaky / unsure, an optional creak type (phrase creak, glottal onset or stop,
+stretch you drag across. Labels are creaky (any part of the word) / not creaky / unsure / no speech (noise or a wrongly timed word, left out), an optional creak type (phrase creak, glottal onset or stop,
 breathy-creaky) and any number of marked creaky stretches inside the word. They are kept in the browser; **Download labels (JSON)** saves
 them as `[{code, word, src: {audio, start, end}, label, type, spans: [{s, e}]}]`, with span times in seconds from the word start.
 

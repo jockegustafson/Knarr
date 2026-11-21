@@ -54,6 +54,8 @@ button[aria-pressed="true"].tog { background: var(--accent-soft); border-color: 
 .lab.c[aria-pressed="true"] { background: var(--creak-soft); border-color: var(--creak); color: var(--creak); }
 .lab.m[aria-pressed="true"] { background: var(--modal-soft); border-color: var(--modal); color: var(--modal); }
 .lab.u[aria-pressed="true"] { background: var(--unsure-soft); border-color: var(--unsure); color: var(--unsure); }
+.lab.n { flex: 0 1 auto; font-weight: 500; }
+.lab.n[aria-pressed="true"] { background: var(--line); border-color: var(--muted); }
 .typ { flex: 1 1 140px; }
 .typ[aria-pressed="true"] { background: var(--creak-soft); border-color: var(--creak); color: var(--creak); font-weight: 600; }
 .chip { font: 12px var(--font-mono); background: var(--creak-soft); color: var(--creak); border: 1px solid var(--creak); border-radius: 999px; padding: 2px 4px 2px 10px; display: inline-flex; gap: 6px; align-items: center; }
@@ -65,6 +67,7 @@ button[aria-pressed="true"].tog { background: var(--accent-soft); border-color: 
 .grid button.c { background: var(--creak-soft); border-color: var(--creak); }
 .grid button.m { background: var(--modal-soft); border-color: var(--modal); }
 .grid button.u { background: var(--unsure-soft); border-color: var(--unsure); }
+.grid button.n { background: var(--line); border-color: var(--muted); text-decoration: line-through; }
 .grid button.cur { outline: 2px solid var(--accent); }
 details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 details ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); max-width: 80ch; }
@@ -76,7 +79,7 @@ details ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--
   <p class="muted">Listen to the <b>highlighted word</b>, then check its voice source in the views below, which share one time axis (0 = word start). Creak shows as widely and irregularly spaced glottal pulses: uneven gaps in the waveform and the period plot, vertical striations far apart or uneven in the wideband spectrogram, pitch dropping low or scattering. A word is <b>creaky</b> when any part of it is creaky; if only part of it is, drag across that part and press <kbd>K</kbd> to mark it. Drag across any view to select a stretch, then zoom to it or play it (also at half speed, where single pulses become audible). /*NOTE*/</p>
   <details><summary>Keys and views</summary><ul>
     <li><kbd>W</kbd> word · <kbd>S</kbd> word at half speed · <kbd>C</kbd> with context · <kbd>L</kbd> loop word · <kbd>P</kbd> play selection · <kbd>Z</kbd> zoom to selection · <kbd>X</kbd> zoom out · <kbd>K</kbd> mark selection as creaky · <kbd>G</kbd> wideband / narrowband</li>
-    <li><kbd>1</kbd> creaky · <kbd>2</kbd> not creaky · <kbd>3</kbd> unsure · <kbd>4</kbd> phrase creak · <kbd>5</kbd> glottal onset / stop · <kbd>6</kbd> breathy-creaky · <kbd>←</kbd> <kbd>→</kbd> previous / next</li>
+    <li><kbd>1</kbd> creaky · <kbd>2</kbd> not creaky · <kbd>3</kbd> unsure · <kbd>0</kbd> no speech or wrong word (the clip is left out) · <kbd>4</kbd> phrase creak · <kbd>5</kbd> glottal onset / stop · <kbd>6</kbd> breathy-creaky · <kbd>←</kbd> <kbd>→</kbd> previous / next</li>
     <li>Pulse marks: red = REAPER glottal closures (voiced only); blue = VoiceMapping IAIF cycles, when available (no voicing check, so also in noise). Pitch: line = /*F0SRC*/, dots = pulse rate (1 / interval). Period plot: one dot per cycle; orange dots changed by more than 20 % from the previous cycle.</li>
   </ul></details>
   <div class="bar"><span class="prog" id="prog">0 / 0</span><span class="meter"><i id="meter"></i></span><span class="muted" id="status">Connecting to the result store…</span><span class="row" id="io" hidden><button type="button" id="dl">Download labels (JSON)</button><label class="muted" style="font-size:13px">Load labels <input type="file" id="ul" accept=".json,application/json"></label></span></div>
@@ -106,6 +109,7 @@ details ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--
       <button type="button" class="lab c" id="l1" aria-pressed="false">Creaky (1)</button>
       <button type="button" class="lab m" id="l0" aria-pressed="false">Not creaky (2)</button>
       <button type="button" class="lab u" id="lu" aria-pressed="false">Unsure (3)</button>
+      <button type="button" class="lab n" id="ln" aria-pressed="false">No speech / wrong word (0)</button>
     </div>
     <div class="row" id="types" hidden>
       <button type="button" class="typ" id="t4" aria-pressed="false">Phrase creak (4)</button>
@@ -328,10 +332,10 @@ function show(i) {
   paintButtons(); draw(); $("read").textContent = "Hover a view for time and period.";
 }
 function count() { const n = ITEMS.filter(i => lab[i.code]).length; $("prog").textContent = `${n} / ${ITEMS.length} labelled`; $("meter").style.width = (100 * n / ITEMS.length) + "%"; }
-function paint(code) { const b = gridBtn[code]; b.classList.remove("c", "m", "u"); const v = lab[code]; if (v) b.classList.add(v === "creak" ? "c" : v === "modal" ? "m" : "u"); }
+function paint(code) { const b = gridBtn[code]; b.classList.remove("c", "m", "u", "n"); const v = lab[code]; if (v) b.classList.add(v === "creak" ? "c" : v === "modal" ? "m" : v === "nospeech" ? "n" : "u"); }
 function paintButtons() {
   const it = ITEMS[cur];
-  for (const [id, v] of [["l1", "creak"], ["l0", "modal"], ["lu", "unsure"]]) $(id).setAttribute("aria-pressed", String(lab[it.code] === v));
+  for (const [id, v] of [["l1", "creak"], ["l0", "modal"], ["lu", "unsure"], ["ln", "nospeech"]]) $(id).setAttribute("aria-pressed", String(lab[it.code] === v));
   $("types").hidden = lab[it.code] !== "creak"; for (const [id, v] of TYPES) $(id).setAttribute("aria-pressed", String(typ[it.code] === v));
   $("nudge").hidden = !(lab[it.code] === "creak" && !(spans[it.code] || []).length);
   $("reveal").hidden = !lab[it.code] || !it.reveal; $("reveal").textContent = it.reveal || "";
@@ -362,13 +366,13 @@ $("zin").onclick = zoomIn; $("zout").onclick = zoomOut; $("mk").onclick = markSe
 $("tg").onclick = () => { wide = !wide; $("tg").textContent = wide ? "Wideband (G)" : "Narrowband (G)"; $("slab").textContent = (wide ? "wideband" : "narrowband") + " spectrogram 0–5 kHz"; draw(); };
 $("tr").onclick = () => { showR = !showR; $("tr").setAttribute("aria-pressed", String(showR)); draw(); };
 $("ti").onclick = () => { showI = !showI; $("ti").setAttribute("aria-pressed", String(showI)); draw(); };
-$("l1").onclick = () => setLab("creak"); $("l0").onclick = () => setLab("modal"); $("lu").onclick = () => setLab("unsure");
+$("l1").onclick = () => setLab("creak"); $("l0").onclick = () => setLab("modal"); $("lu").onclick = () => setLab("unsure"); $("ln").onclick = () => setLab("nospeech");
 for (const [id, v] of TYPES) $(id).onclick = () => setTyp(v);
 $("prev").onclick = () => show(cur - 1); $("next").onclick = nextUnlabelled;
 document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || e.target.tagName === "INPUT") return; const k = e.key.toLowerCase();
   const act = { w: () => play("word"), s: () => play("slow"), c: () => play("ctx"), p: () => play("sel"), l: () => $("pl").click(), z: zoomIn, x: zoomOut, k: markSel, g: () => $("tg").click(),
-    1: () => setLab("creak"), 2: () => setLab("modal"), 3: () => setLab("unsure"), 4: () => setTyp("phrase"), 5: () => setTyp("glottal"), 6: () => setTyp("breathy"),
+    1: () => setLab("creak"), 2: () => setLab("modal"), 3: () => setLab("unsure"), 0: () => setLab("nospeech"), 4: () => setTyp("phrase"), 5: () => setTyp("glottal"), 6: () => setTyp("breathy"),
     arrowright: () => show(cur + 1), arrowleft: () => show(cur - 1), escape: stop }[k];
   if (act) { act(); e.preventDefault(); }
 });

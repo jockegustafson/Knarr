@@ -9,6 +9,7 @@ phone-band, noisy and reverberant audio. A 10-minute file takes a few seconds on
 pip install "knarr[gate] @ git+https://github.com/jockegustafson/Knarr.git"
 knarr dialog.wav words.tsv -o creak.tsv      # word list as TSV (word, start, end) or a Praat TextGrid (--tier words)
 knarr-demo                                   # local web page: record or load audio, see the creak on a spectrogram
+knarr-inspect dialog.wav words.tsv -o check.html  # a page for checking words by ear and eye (waveform, pulses, half speed)
 ```
 
 ```
@@ -93,6 +94,34 @@ where the score passes the threshold slider), the score curve under it, and, if 
 per word. Click the picture to play from that point. Everything runs on your machine; nothing is uploaded anywhere. The microphone only
 works when the page is opened as `http://localhost` (from another machine, load files instead). The curve scores 0.2 s windows every
 50 ms with the word rule, which shows where creak is; the validated use is scoring aligned words.
+
+## Check words by ear and eye
+
+`knarr-inspect` writes one self-contained web page for labelling creak by hand: open it in any browser, nothing is uploaded.
+
+```bash
+knarr dialog.wav words.tsv -o creak.tsv                          # score the words first (optional)
+knarr-inspect dialog.wav creak.tsv --scores creak.tsv --pick uncertain --show-score -o check.html
+```
+
+Each word is shown on one time axis (0 = word start, the word ± 0.25 s) in four views:
+
+- **waveform**, zoomable down to single glottal cycles, with REAPER's glottal pulse marks;
+- **spectrogram**, wideband (pulses as vertical striations; creak spaces them widely and unevenly) or narrowband (harmonics);
+- **pitch**: REAPER's F0 and the pulse rate (1 / interval) on a log scale;
+- **period of every cycle**, with cycles that differ by more than 20 % from the previous one marked.
+
+You can play the word, the word at **half speed** (an octave lower, so single pulses become audible), the 2.5 s before it, a loop, or any
+stretch you drag across. Labels are creaky / not creaky / unsure, an optional creak type (phrase creak, glottal onset or stop,
+breathy-creaky) and any number of marked creaky stretches inside the word. They are kept in the browser; **Download labels (JSON)** saves
+them as `[{code, word, src: {audio, start, end}, label, type, spans: [{s, e}]}]`, with span times in seconds from the word start.
+
+- `--pick uncertain` keeps the words Knarr scored 0.3–0.7, the ones worth a human ear; `--pick creaky` keeps those ≥ 0.5. Both need `--scores`.
+- `--show-score` shows Knarr's score only after you have labelled the word, so it does not steer you.
+- `--max` (default 200) caps the number of words, drawn at random (`--seed`); `--channel` and `--tier` work as for `knarr`.
+- With Huanchen Cai's [VoiceMapping](https://github.com/HuanchenCai/VoiceMapping) installed (importable as `voicemap`), its audio-only
+  IAIF glottal cycles are added as a second pulse layer. It needs pyreaper (`pip install "knarr[gate]"`) and uses ffmpeg for the
+  listening clips when it is on the PATH.
 
 ## Which model, and what the scores mean
 

@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>/*TITLE*/</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Knarr creak inspection page (knarr-inspect). One word, several synchronised views of its voice source: zoomable waveform with glottal pulse marks, wideband / narrowband spectrogram,
+   pitch with pulse rate, and the period of every cycle; drag to select, zoom, play slowed, and mark the creaky stretch */
+:root {
+  --bg: #f3f4f1; --surface: #ffffff; --fg: #1d2320; --muted: #5b6660; --line: #d6dcd8; --grid: #e7ebe8;
+  --accent: #2f5f7c; --accent-soft: #e0eaf0; --creak: #a2481c; --creak-soft: #f5e3d8; --modal: #3a6a44; --modal-soft: #e0ede2;
+  --unsure: #6b6252; --unsure-soft: #ebe7df; --word: rgba(240, 200, 60, .16); --sel: rgba(47, 95, 124, .16); --span: rgba(162, 72, 28, .22);
+  --wave: #27302c; --mark-r: #c0392b; --mark-i: #2f6fa8; --pitch: #2f5f7c;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif; --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141817; --surface: #1c2120; --fg: #e2e8e5; --muted: #97a39d; --line: #2e3633; --grid: #252c2a;
+  --accent: #82b6d6; --accent-soft: #1f3341; --creak: #e8a074; --creak-soft: #3f281c; --modal: #8fc89c; --modal-soft: #203528;
+  --unsure: #c4baa8; --unsure-soft: #33302a; --word: rgba(240, 200, 60, .13); --sel: rgba(130, 182, 214, .18); --span: rgba(232, 160, 116, .24);
+  --wave: #d5ddd9; --mark-r: #ff7b6b; --mark-i: #7fb6ec; --pitch: #82b6d6; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141817; --surface: #1c2120; --fg: #e2e8e5; --muted: #97a39d; --line: #2e3633; --grid: #252c2a;
+  --accent: #82b6d6; --accent-soft: #1f3341; --creak: #e8a074; --creak-soft: #3f281c; --modal: #8fc89c; --modal-soft: #203528;
+  --unsure: #c4baa8; --unsure-soft: #33302a; --word: rgba(240, 200, 60, .13); --sel: rgba(130, 182, 214, .18); --span: rgba(232, 160, 116, .24);
+  --wave: #d5ddd9; --mark-r: #ff7b6b; --mark-i: #7fb6ec; --pitch: #82b6d6; color-scheme: dark }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 20px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 14px; }
+h1 { font-size: 24px; font-weight: 600; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 72ch; }
+.muted { color: var(--muted); }
+kbd { font: 12px var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; background: var(--surface); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 13px; }
+.prog { font: 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+.meter { flex: 1 1 160px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; min-width: 0; }
+.meter i { display: block; height: 100%; background: var(--accent); width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.code { font: 600 18px var(--font-mono); }
+.ctx { font-size: 19px; line-height: 1.55; }
+.ctx mark { background: var(--word); color: inherit; border-radius: 3px; padding: 0 3px; font-weight: 600; box-shadow: inset 0 -2px 0 rgba(200, 150, 20, .6); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.play { background: var(--accent-soft); border-color: var(--accent); }
+button[aria-pressed="true"].tog { background: var(--accent-soft); border-color: var(--accent); }
+.sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.views { position: relative; display: flex; flex-direction: column; gap: 4px; user-select: none; touch-action: pan-y; }
+.views canvas { display: block; width: 100%; border-radius: 4px; background: var(--surface); }
+.vlab { position: absolute; left: 6px; font: 11px var(--font-mono); color: var(--muted); pointer-events: none; letter-spacing: .02em; background: var(--surface); padding: 0 5px; border-radius: 3px; opacity: .92; }
+[hidden] { display: none !important; }
+#head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; display: none; }
+#ov { cursor: ew-resize; }
+.readout { font: 12px var(--font-mono); color: var(--muted); min-height: 1.5em; font-variant-numeric: tabular-nums; }
+.lab { flex: 1 1 140px; font-weight: 600; padding: 11px 12px; }
+.lab.c[aria-pressed="true"] { background: var(--creak-soft); border-color: var(--creak); color: var(--creak); }
+.lab.m[aria-pressed="true"] { background: var(--modal-soft); border-color: var(--modal); color: var(--modal); }
+.lab.u[aria-pressed="true"] { background: var(--unsure-soft); border-color: var(--unsure); color: var(--unsure); }
+.typ { flex: 1 1 140px; }
+.typ[aria-pressed="true"] { background: var(--creak-soft); border-color: var(--creak); color: var(--creak); font-weight: 600; }
+.chip { font: 12px var(--font-mono); background: var(--creak-soft); color: var(--creak); border: 1px solid var(--creak); border-radius: 999px; padding: 2px 4px 2px 10px; display: inline-flex; gap: 6px; align-items: center; }
+.chip button { border: 0; background: transparent; color: inherit; padding: 0 6px; font-size: 13px; }
+.reveal { font-size: 13px; border-left: 3px solid var(--accent); padding: 4px 10px; background: var(--accent-soft); border-radius: 0 6px 6px 0; }
+.nav { display: flex; justify-content: space-between; gap: 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 4px; }
+.grid button { padding: 3px 0; font: 12px var(--font-mono); }
+.grid button.c { background: var(--creak-soft); border-color: var(--creak); }
+.grid button.m { background: var(--modal-soft); border-color: var(--modal); }
+.grid button.u { background: var(--unsure-soft); border-color: var(--unsure); }
+.grid button.cur { outline: 2px solid var(--accent); }
+details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+details ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); max-width: 80ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>/*TITLE*/</h1>
+  <p class="muted">Listen to the <b>highlighted word</b>, then check its voice source in the views below, which share one time axis (0 = word start). Creak shows as widely and irregularly spaced glottal pulses: uneven gaps in the waveform and the period plot, vertical striations far apart or uneven in the wideband spectrogram, pitch dropping low or scattering. Drag across any view to select a stretch, then zoom to it, play it (also at half speed, where single pulses become audible) or mark it as the creaky part. /*NOTE*/</p>
+  <details><summary>Keys and views</summary><ul>
+    <li><kbd>W</kbd> word · <kbd>S</kbd> word at half speed · <kbd>C</kbd> with context · <kbd>L</kbd> loop word · <kbd>P</kbd> play selection · <kbd>Z</kbd> zoom to selection · <kbd>X</kbd> zoom out · <kbd>K</kbd> mark selection as creaky · <kbd>G</kbd> wideband / narrowband</li>
+    <li><kbd>1</kbd> creaky · <kbd>2</kbd> not creaky · <kbd>3</kbd> unsure · <kbd>4</kbd> phrase creak · <kbd>5</kbd> glottal onset / stop · <kbd>6</kbd> breathy-creaky · <kbd>←</kbd> <kbd>→</kbd> previous / next</li>
+    <li>Pulse marks: red = REAPER glottal closures (voiced only); blue = VoiceMapping IAIF cycles, when available (no voicing check, so also in noise). Pitch: line = /*F0SRC*/, dots = pulse rate (1 / interval). Period plot: one dot per cycle; orange dots changed by more than 20 % from the previous cycle.</li>
+  </ul></details>
+  <div class="bar"><span class="prog" id="prog">0 / 0</span><span class="meter"><i id="meter"></i></span><span class="muted" id="status">Connecting to the result store…</span><span class="row" id="io" hidden><button type="button" id="dl">Download labels (JSON)</button><label class="muted" style="font-size:13px">Load labels <input type="file" id="ul" accept=".json,application/json"></label></span></div>
+  <section class="panel">
+    <div class="top"><span class="code" id="code"></span><span class="muted" id="pos"></span></div>
+    <div class="ctx" id="ctx"></div>
+    <div class="row">
+      <button type="button" class="play" id="pw">▶ Word (W)</button><button type="button" class="play" id="ps">▶ Half speed (S)</button>
+      <button type="button" class="play" id="pc">▶ Context (C)</button><button type="button" class="tog" id="pl" aria-pressed="false">⟲ Loop (L)</button>
+      <span class="sep"></span>
+      <button type="button" id="psel">▶ Selection (P)</button><button type="button" id="zin">Zoom to selection (Z)</button><button type="button" id="zout">Zoom out (X)</button>
+      <span class="sep"></span>
+      <button type="button" class="tog" id="tg" aria-pressed="true">Wideband (G)</button>
+      <button type="button" class="tog" id="tr" aria-pressed="true">REAPER pulses</button><button type="button" class="tog" id="ti" aria-pressed="false">IAIF cycles</button>
+    </div>
+    <div class="views" id="views">
+      <canvas id="ov" height="34" aria-label="Overview: drag to choose the zoomed range"></canvas>
+      <div style="position:relative"><canvas id="cw" height="180" aria-label="Waveform with glottal pulse marks"></canvas><span class="vlab" style="top:4px">waveform</span></div>
+      <div style="position:relative"><canvas id="cs" height="150" aria-label="Spectrogram"></canvas><span class="vlab" style="top:4px" id="slab">wideband spectrogram 0–5 kHz</span></div>
+      <div style="position:relative"><canvas id="cp" height="100" aria-label="Pitch"></canvas><span class="vlab" style="top:4px">pitch Hz (log)</span></div>
+      <div style="position:relative"><canvas id="cq" height="118" aria-label="Period per cycle"></canvas><span class="vlab" style="top:4px">period ms per cycle</span></div>
+      <div id="head"></div>
+    </div>
+    <div class="readout" id="read">Hover a view for time and period.</div>
+    <div class="row"><button type="button" id="mk">Mark selection as creaky (K)</button><span id="spans" class="row"></span></div>
+    <div class="row">
+      <button type="button" class="lab c" id="l1" aria-pressed="false">Creaky (1)</button>
+      <button type="button" class="lab m" id="l0" aria-pressed="false">Not creaky (2)</button>
+      <button type="button" class="lab u" id="lu" aria-pressed="false">Unsure (3)</button>
+    </div>
+    <div class="row" id="types" hidden>
+      <button type="button" class="typ" id="t4" aria-pressed="false">Phrase creak (4)</button>
+      <button type="button" class="typ" id="t5" aria-pressed="false">Glottal onset / stop (5)</button>
+      <button type="button" class="typ" id="t6" aria-pressed="false">Breathy-creaky (6)</button>
+    </div>
+    <div class="reveal" id="reveal" hidden></div>
+    <div class="nav"><button type="button" id="prev">← Previous</button><button type="button" id="next">Next unlabelled →</button></div>
+  </section>
+  <div class="grid" id="grid" aria-label="All items"></div>
+</div>
+<script>
+const ITEMS = /*ITEMS*/[];
+const PAGE = /*PAGE*/"page";
+const HAS_IAIF = ITEMS.some(i => i.iaif && i.iaif.length);
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const lab = {}, typ = {}, spans = {}, cache = {}, gridBtn = {};
+const TYPES = [["t4", "phrase"], ["t5", "glottal"], ["t6", "breathy"]];
+let cur = 0, view = [0, 1], sel = null, wide = true, showR = true, showI = false, looping = false, db = null;
+let actx = null, src = null, playInfo = null;
+
+// ---------- data ----------
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) { let b = n >> 1; for (; j & b; b >>= 1) j ^= b; j ^= b; if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; } }
+  for (let len = 2; len <= n; len <<= 1) {
+    const a = -2 * Math.PI / len, wr = Math.cos(a), wi = Math.sin(a);
+    for (let i = 0; i < n; i += len) { let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) { const p = i + k, q = p + len / 2, tr = re[q] * cr - im[q] * ci, ti = re[q] * ci + im[q] * cr;
+        re[q] = re[p] - tr; im[q] = im[p] - ti; re[p] += tr; im[p] += ti; const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr; } }
+  }
+}
+function spec(y, sr, win, hop, nfft, fmax) {
+  const nf = Math.max(1, Math.floor((y.length - win) / hop) + 1), nb = Math.round(fmax / sr * nfft), M = new Float32Array(nf * nb);
+  const w = new Float64Array(win); for (let i = 0; i < win; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (win - 1));
+  const re = new Float64Array(nfft), im = new Float64Array(nfft); let mx = -1e9;
+  for (let f = 0; f < nf; f++) {
+    re.fill(0); im.fill(0); const o = f * hop;
+    for (let i = 0; i < win; i++) re[i] = (y[o + i] - (i ? 0.97 * y[o + i - 1] : 0)) * w[i];   // pre-emphasis keeps the striations visible above 1 kHz
+    fft(re, im);
+    for (let b = 0; b < nb; b++) { const v = 10 * Math.log10(re[b] * re[b] + im[b] * im[b] + 1e-12); M[f * nb + b] = v; if (v > mx) mx = v; }
+  }
+  for (let i = 0; i < M.length; i++) M[i] = Math.max(0, Math.min(1, (M[i] - mx + 70) / 70));
+  return { M, nf, nb, hop, win, sr };
+}
+function periods(marks) {
+  const P = [];
+  for (let i = 1; i < marks.length; i++) { const T = marks[i] - marks[i - 1]; if (T > 0.002 && T < 1 / 30) P.push({ t: (marks[i] + marks[i - 1]) / 2, T, a: marks[i - 1], b: marks[i] }); }
+  for (let i = 0; i < P.length; i++) { const q = i && Math.abs(P[i].a - P[i - 1].b) < 1e-6 ? P[i - 1] : null; P[i].irr = q ? Math.abs(Math.log(P[i].T / q.T)) > 0.2 : false; P[i].join = !!q; }
+  return P;
+}
+function data(it) {
+  if (cache[it.code]) return cache[it.code];
+  const b = atob(it.pcm), n = b.length >> 1, y = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let v = b.charCodeAt(2 * i) | (b.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; y[i] = v / 32768; }
+  const d = { y, dur: n / it.sr, sw: spec(y, it.sr, 64, 16, 256, 5000), sn: spec(y, it.sr, 480, 32, 1024, 5000), pr: periods(it.reaper), pi: periods(it.iaif), img: {} };
+  return (cache[it.code] = d);
+}
+function specImage(d, s, key) {
+  const tk = key + (matchMedia("(prefers-color-scheme: dark)").matches ? "d" : "l") + (document.documentElement.dataset.theme || "");
+  if (d.img[tk]) return d.img[tk];
+  const c = document.createElement("canvas"); c.width = s.nf; c.height = s.nb; const g = c.getContext("2d"), im = g.createImageData(s.nf, s.nb);
+  const lo = hex(css("--surface")), hi = hex(css("--fg"));
+  for (let f = 0; f < s.nf; f++) for (let b = 0; b < s.nb; b++) {
+    const v = Math.pow(s.M[f * s.nb + b], 1.6), o = ((s.nb - 1 - b) * s.nf + f) * 4;
+    im.data[o] = lo[0] + (hi[0] - lo[0]) * v; im.data[o + 1] = lo[1] + (hi[1] - lo[1]) * v; im.data[o + 2] = lo[2] + (hi[2] - lo[2]) * v; im.data[o + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); return (d.img[tk] = c);
+}
+function hex(c) { const m = c.replace("#", ""); return [0, 2, 4].map(i => parseInt(m.slice(i, i + 2), 16)); }
+
+// ---------- drawing ----------
+function setup(cv) { const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, h = +cv.getAttribute("height");
+  if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); } cv.height = h * dpr; cv.style.height = h + "px";
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); return { g, W: r.width, H: h }; }
+const X = (t, W) => (t - view[0]) / (view[1] - view[0]) * W;
+const T = (x, W) => view[0] + x / W * (view[1] - view[0]);
+function bands(g, W, H, it) {
+  g.fillStyle = css("--word"); g.fillRect(X(it.vws, W), 0, X(it.vwe, W) - X(it.vws, W), H);
+  g.fillStyle = css("--span"); for (const [a, b] of spans[it.code] || []) g.fillRect(X(a, W), 0, X(b, W) - X(a, W), 6);
+  if (sel) { g.fillStyle = css("--sel"); g.fillRect(X(sel[0], W), 0, X(sel[1], W) - X(sel[0], W), H); }
+}
+function marks(g, W, H, list, color, top) {
+  g.strokeStyle = color; g.lineWidth = 1.2; const zoomed = view[1] - view[0] < 0.2;
+  for (const t of list) { if (t < view[0] || t > view[1]) continue; const x = Math.round(X(t, W)) + .5;
+    g.globalAlpha = 1; g.beginPath(); if (top) { g.moveTo(x, 0); g.lineTo(x, 10); } else { g.moveTo(x, H - 10); g.lineTo(x, H); } g.stroke();
+    if (zoomed) { g.globalAlpha = .28; g.beginPath(); g.moveTo(x, 10); g.lineTo(x, H - 10); g.stroke(); } }
+  g.globalAlpha = 1;
+}
+function drawWave(it, d) {
+  const { g, W, H } = setup($("cw")); g.clearRect(0, 0, W, H); bands(g, W, H, it);
+  const sr = it.sr, i0 = Math.max(0, Math.floor(view[0] * sr)), i1 = Math.min(d.y.length, Math.ceil(view[1] * sr)); let mx = 1e-4;
+  for (let i = i0; i < i1; i++) mx = Math.max(mx, Math.abs(d.y[i]));
+  const mid = H / 2, k = (H / 2 - 14) / mx; g.strokeStyle = css("--grid"); g.beginPath(); g.moveTo(0, mid + .5); g.lineTo(W, mid + .5); g.stroke();
+  g.strokeStyle = css("--wave"); g.lineWidth = 1; g.beginPath(); const spp = (i1 - i0) / W;
+  if (spp <= 2) { for (let i = i0; i < i1; i++) { const x = X(i / sr, W), yy = mid - d.y[i] * k; i === i0 ? g.moveTo(x, yy) : g.lineTo(x, yy); } }
+  else for (let x = 0; x < W; x++) { const a = Math.floor(i0 + x * spp), b = Math.min(i1, Math.floor(i0 + (x + 1) * spp) + 1); let lo = 1, hi = -1;
+    for (let i = a; i < b; i++) { const v = d.y[i]; if (v < lo) lo = v; if (v > hi) hi = v; } g.moveTo(x + .5, mid - hi * k); g.lineTo(x + .5, mid - lo * k); }
+  g.stroke();
+  if (showR) marks(g, W, H, it.reaper, css("--mark-r"), true);
+  if (showI) marks(g, W, H, it.iaif, css("--mark-i"), false);
+  g.fillStyle = css("--muted"); g.font = "11px " + css("--font-mono"); g.textAlign = "right"; g.fillText("×" + (1 / mx).toFixed(1), W - 6, 14);
+}
+function drawSpec(it, d) {
+  const { g, W, H } = setup($("cs")); const s = wide ? d.sw : d.sn, img = specImage(d, s, wide ? "w" : "n");
+  const fx = t => (t * s.sr - s.win / 2) / s.hop; g.imageSmoothingEnabled = true;
+  const a = fx(view[0]), b = fx(view[1]); g.clearRect(0, 0, W, H);
+  g.drawImage(img, Math.max(0, a), 0, Math.max(1, Math.min(s.nf, b) - Math.max(0, a)), s.nb, X(Math.max(view[0], (s.win / 2) / s.sr), W), 0,
+              (Math.min(s.nf, b) - Math.max(0, a)) / (b - a) * W, H);
+  g.strokeStyle = css("--word").replace(/[\d.]+\)$/, ".9)"); g.lineWidth = 1.5;
+  for (const t of [it.vws, it.vwe]) { const x = X(t, W); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+  if (sel) { g.fillStyle = css("--sel"); g.fillRect(X(sel[0], W), 0, X(sel[1], W) - X(sel[0], W), H); }
+  g.fillStyle = css("--muted"); g.font = "10px " + css("--font-mono"); g.textAlign = "right";
+  for (const f of [1000, 2000, 3000, 4000]) { const yy = H - f / 5000 * H; g.fillText(f / 1000 + "k", W - 4, yy + 3); }
+}
+const FMIN = 30, FMAX = 400, YF = (f, H) => H - 6 - (Math.log(f / FMIN) / Math.log(FMAX / FMIN)) * (H - 14);
+function drawPitch(it, d) {
+  const { g, W, H } = setup($("cp")); g.clearRect(0, 0, W, H); bands(g, W, H, it);
+  g.font = "10px " + css("--font-mono"); g.textAlign = "right";
+  for (const f of [50, 100, 200]) { const yy = YF(f, H); g.strokeStyle = css("--grid"); g.beginPath(); g.moveTo(0, yy + .5); g.lineTo(W, yy + .5); g.stroke(); g.fillStyle = css("--muted"); g.fillText(f, W - 4, yy - 2); }
+  g.strokeStyle = css("--pitch"); g.lineWidth = 2; g.beginPath(); let on = false;
+  it.f0.forEach((f, k) => { const t = k * 0.01 + 0.005; if (f > 0 && t >= view[0] - .02 && t <= view[1] + .02) { const x = X(t, W), yy = YF(Math.min(FMAX, Math.max(FMIN, f)), H); on ? g.lineTo(x, yy) : g.moveTo(x, yy); on = true; } else on = false; });
+  g.stroke();
+  const dots = (P, c) => { g.fillStyle = c; for (const p of P) { if (p.t < view[0] || p.t > view[1]) continue; g.beginPath(); g.arc(X(p.t, W), YF(Math.min(FMAX, Math.max(FMIN, 1 / p.T)), H), 2.4, 0, 7); g.fill(); } };
+  if (showI) dots(d.pi, css("--mark-i")); if (showR) dots(d.pr, css("--mark-r"));
+}
+const PMAX = 0.034, YP = (T, H) => H - 18 - T / PMAX * (H - 26);
+function drawPeriod(it, d) {
+  const { g, W, H } = setup($("cq")); g.clearRect(0, 0, W, H); bands(g, W, H, it);
+  g.font = "10px " + css("--font-mono");
+  for (const ms of [10, 20, 30]) { const yy = YP(ms / 1000, H); g.strokeStyle = css("--grid"); g.beginPath(); g.moveTo(0, yy + .5); g.lineTo(W, yy + .5); g.stroke(); g.fillStyle = css("--muted"); g.textAlign = "right"; g.fillText(ms, W - 4, yy - 2); }
+  const draw = (P, base) => {
+    g.strokeStyle = base; g.globalAlpha = .45; g.lineWidth = 1; g.beginPath();
+    P.forEach((p, i) => { const x = X(p.t, W), yy = YP(p.T, H); p.join ? g.lineTo(x, yy) : g.moveTo(x, yy); }); g.stroke(); g.globalAlpha = 1;
+    for (const p of P) { if (p.t < view[0] || p.t > view[1]) continue; g.fillStyle = p.irr ? css("--creak") : base; g.beginPath(); g.arc(X(p.t, W), YP(p.T, H), p.irr ? 3.2 : 2.4, 0, 7); g.fill(); }
+  };
+  if (showI) draw(d.pi, css("--mark-i")); if (showR) draw(d.pr, css("--mark-r"));
+  // time axis, seconds from the word start
+  g.fillStyle = css("--muted"); g.textAlign = "center"; const span = view[1] - view[0];
+  const step = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5].find(s => span / s <= 10) || 1;
+  for (let t = Math.ceil((view[0] - it.vws) / step) * step; t <= view[1] - it.vws; t += step) { const x = X(t + it.vws, W); g.fillRect(x, H - 14, 1, 4); g.fillText((Math.abs(t) < 1e-9 ? 0 : t).toFixed(step < 0.01 ? 3 : 2), x, H - 2); }
+}
+function drawOverview(it, d) {
+  const { g, W, H } = setup($("ov")); g.clearRect(0, 0, W, H);
+  const full = t => t / d.dur * W; g.fillStyle = css("--word"); g.fillRect(full(it.vws), 0, full(it.vwe) - full(it.vws), H);
+  g.strokeStyle = css("--muted"); g.beginPath(); const spp = d.y.length / W;
+  for (let x = 0; x < W; x++) { let m = 0; for (let i = Math.floor(x * spp); i < Math.floor((x + 1) * spp); i++) m = Math.max(m, Math.abs(d.y[i])); g.moveTo(x + .5, H / 2 - m * (H / 2 - 3)); g.lineTo(x + .5, H / 2 + m * (H / 2 - 3)); }
+  g.stroke(); g.strokeStyle = css("--accent"); g.lineWidth = 2; g.strokeRect(full(view[0]) + 1, 1, full(view[1]) - full(view[0]) - 2, H - 2);
+}
+function draw() { const it = ITEMS[cur], d = data(it); drawOverview(it, d); drawWave(it, d); drawSpec(it, d); drawPitch(it, d); drawPeriod(it, d); }
+
+// ---------- interaction ----------
+let drag = null;
+const viewsEl = $("views");
+function localT(e) { const r = $("cw").getBoundingClientRect(); return T(Math.max(0, Math.min(r.width, e.clientX - r.left)), r.width); }
+viewsEl.addEventListener("pointerdown", e => {
+  if (e.target.id === "ov") { const r = e.target.getBoundingClientRect(), d = data(ITEMS[cur]); drag = { ov: true, r, d }; moveOv(e); e.target.setPointerCapture(e.pointerId); return; }
+  if (e.target.tagName !== "CANVAS") return; drag = { t0: localT(e) }; sel = null; e.target.setPointerCapture(e.pointerId);
+});
+function moveOv(e) { const w = view[1] - view[0], c = (e.clientX - drag.r.left) / drag.r.width * drag.d.dur; view = [Math.max(0, Math.min(drag.d.dur - w, c - w / 2)), 0]; view[1] = view[0] + w; draw(); }
+viewsEl.addEventListener("pointermove", e => {
+  if (drag && drag.ov) return moveOv(e);
+  if (drag) { const t = localT(e); sel = [Math.min(drag.t0, t), Math.max(drag.t0, t)]; draw(); }
+  if (e.target.tagName === "CANVAS" && e.target.id !== "ov") readout(localT(e));
+});
+viewsEl.addEventListener("pointerup", () => { if (drag && !drag.ov && sel && sel[1] - sel[0] < 0.004) { sel = null; draw(); } drag = null; });
+viewsEl.addEventListener("dblclick", () => zoomOut());
+function readout(t) {
+  const it = ITEMS[cur], d = data(it); let best = null;
+  for (const p of d.pr) if (t >= p.a && t <= p.b) best = p;
+  $("read").textContent = `t = ${((t - it.vws) * 1000).toFixed(1)} ms from word start` + (best ? ` · REAPER period ${(best.T * 1000).toFixed(1)} ms (${(1 / best.T).toFixed(0)} Hz)${best.irr ? " · irregular" : ""}` : " · no REAPER cycle here");
+}
+function zoomIn() { if (!sel || sel[1] - sel[0] < 0.01) return; view = [sel[0], sel[1]]; draw(); }
+function zoomOut() { const it = ITEMS[cur], d = data(it); view = [0, d.dur]; draw(); }
+
+// ---------- audio ----------
+async function buffers(it) {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const d = data(it);
+  if (!d.pcmBuf) { d.pcmBuf = actx.createBuffer(1, d.y.length, it.sr); d.pcmBuf.copyToChannel(d.y.map(v => v * 0.8), 0); }
+  if (!d.ctxBuf) { const bin = Uint8Array.from(atob(it.audio.split(",")[1]), c => c.charCodeAt(0)); d.ctxBuf = await actx.decodeAudioData(bin.buffer); }
+  return d;
+}
+function stop() { if (src) { try { src.stop(); } catch (e) {} src = null; } playInfo = null; $("head").style.display = "none"; }
+async function play(kind) {
+  const it = ITEMS[cur];
+  try {
+    const d = await buffers(it); if (actx.state === "suspended") await actx.resume(); stop();
+    src = actx.createBufferSource(); let a, b, rate = 1, off = 0;           // off: buffer time -> view time
+    if (kind === "ctx") { src.buffer = d.ctxBuf; a = 0; b = d.ctxBuf.duration; off = it.vws - it.ws; }
+    else { src.buffer = d.pcmBuf;
+      if (kind === "sel") { if (!sel) return; [a, b] = sel; } else { a = Math.max(0, it.vws - 0.05); b = Math.min(d.dur, it.vwe + 0.08); }
+      if (kind === "slow") rate = 0.5; }
+    src.playbackRate.value = rate; src.connect(actx.destination);
+    if (looping && kind !== "ctx") { src.loop = true; src.loopStart = a; src.loopEnd = b; src.start(0, a); }
+    else src.start(0, a, b - a);
+    playInfo = { t: actx.currentTime, a, b, rate, off, loop: looping && kind !== "ctx" }; const me = src; src.onended = () => { if (src === me) stop(); };
+    requestAnimationFrame(head);
+  } catch (e) { $("status").textContent = "Click once in the page to allow sound."; }
+}
+function head() {
+  if (!playInfo) return; let p = (actx.currentTime - playInfo.t) * playInfo.rate;
+  if (playInfo.loop) p = p % (playInfo.b - playInfo.a); const t = playInfo.a + p + playInfo.off;
+  const r = $("cw").getBoundingClientRect(), vr = viewsEl.getBoundingClientRect(), x = X(t, r.width);
+  const el = $("head"); if (t >= view[0] && t <= view[1]) { el.style.display = "block"; el.style.left = (r.left - vr.left + x) + "px"; } else el.style.display = "none";
+  requestAnimationFrame(head);
+}
+
+// ---------- labels ----------
+function ctxHtml(it) {
+  const ws = it.ctx.split(" "), k = ws.lastIndexOf(it.word), frag = document.createDocumentFragment();
+  ws.forEach((w, i) => { if (i) frag.append(" "); if (i === k) { const m = document.createElement("mark"); m.textContent = w; frag.append(m); } else frag.append(w); });
+  return frag;
+}
+for (const [i, it] of ITEMS.entries()) { const b = document.createElement("button"); b.type = "button"; b.textContent = it.code; b.onclick = () => show(i); $("grid").append(b); gridBtn[it.code] = b; }
+function show(i) {
+  stop(); cur = (i + ITEMS.length) % ITEMS.length; const it = ITEMS[cur], d = data(it); sel = null; view = [0, d.dur];
+  $("code").textContent = it.code; $("pos").textContent = `${cur + 1} of ${ITEMS.length}`; $("ctx").replaceChildren(ctxHtml(it));
+  for (const b of Object.values(gridBtn)) b.classList.remove("cur"); gridBtn[it.code].classList.add("cur");
+  paintButtons(); draw(); $("read").textContent = "Hover a view for time and period.";
+}
+function count() { const n = ITEMS.filter(i => lab[i.code]).length; $("prog").textContent = `${n} / ${ITEMS.length} labelled`; $("meter").style.width = (100 * n / ITEMS.length) + "%"; }
+function paint(code) { const b = gridBtn[code]; b.classList.remove("c", "m", "u"); const v = lab[code]; if (v) b.classList.add(v === "creak" ? "c" : v === "modal" ? "m" : "u"); }
+function paintButtons() {
+  const it = ITEMS[cur];
+  for (const [id, v] of [["l1", "creak"], ["l0", "modal"], ["lu", "unsure"]]) $(id).setAttribute("aria-pressed", String(lab[it.code] === v));
+  $("types").hidden = lab[it.code] !== "creak"; for (const [id, v] of TYPES) $(id).setAttribute("aria-pressed", String(typ[it.code] === v));
+  $("reveal").hidden = !lab[it.code] || !it.reveal; $("reveal").textContent = it.reveal || "";
+  const box = $("spans"); box.replaceChildren();
+  (spans[it.code] || []).forEach(([a, b], k) => { const c = document.createElement("span"); c.className = "chip";
+    c.textContent = `creaky ${((a - it.vws) * 1000).toFixed(0)}–${((b - it.vws) * 1000).toFixed(0)} ms`;
+    const x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", "Remove this stretch");
+    x.onclick = () => { spans[it.code].splice(k, 1); save(it.code); paintButtons(); draw(); }; c.append(x); box.append(c); });
+}
+function setLab(v) { const it = ITEMS[cur]; lab[it.code] = v; if (v !== "creak") delete typ[it.code]; paint(it.code); count(); save(it.code); paintButtons(); }
+function setTyp(v) { const it = ITEMS[cur]; if (lab[it.code] !== "creak") return; typ[it.code] = typ[it.code] === v ? undefined : v; if (!typ[it.code]) delete typ[it.code]; save(it.code); paintButtons(); }
+function markSel() { const it = ITEMS[cur]; if (!sel || sel[1] - sel[0] < 0.005) return;
+  (spans[it.code] = spans[it.code] || []).push([+sel[0].toFixed(4), +sel[1].toFixed(4)]); if (!lab[it.code]) { lab[it.code] = "creak"; paint(it.code); count(); }
+  sel = null; save(it.code); paintButtons(); draw(); }
+function nextUnlabelled() { for (let k = 1; k <= ITEMS.length; k++) { const j = (cur + k) % ITEMS.length; if (!lab[ITEMS[j].code]) return show(j); } show(cur + 1); }
+const busy = {}, again = {};
+async function save(code) {
+  if (!db) { localSave(); return; } if (busy[code]) { again[code] = true; return; } busy[code] = true; const it = ITEMS.find(i => i.code === code);
+  try { await db.doc("labels/" + code).set({ code, label: lab[code] || null, type: typ[code] || null, spans: (spans[code] || []).map(([a, b]) => ({ s: +(a - it.vws).toFixed(4), e: +(b - it.vws).toFixed(4) })), at: Date.now() });
+        $("status").textContent = "Saved."; }
+  catch (e) { $("status").textContent = "Not saved (" + (e.code || e.message) + "): labels stay on this page only."; }
+  busy[code] = false; if (again[code]) { again[code] = false; save(code); }
+}
+
+$("pw").onclick = () => play("word"); $("ps").onclick = () => play("slow"); $("pc").onclick = () => play("ctx"); $("psel").onclick = () => play("sel");
+$("pl").onclick = () => { looping = !looping; $("pl").setAttribute("aria-pressed", String(looping)); if (!looping) stop(); };
+$("zin").onclick = zoomIn; $("zout").onclick = zoomOut; $("mk").onclick = markSel;
+$("tg").onclick = () => { wide = !wide; $("tg").textContent = wide ? "Wideband (G)" : "Narrowband (G)"; $("slab").textContent = (wide ? "wideband" : "narrowband") + " spectrogram 0–5 kHz"; draw(); };
+$("tr").onclick = () => { showR = !showR; $("tr").setAttribute("aria-pressed", String(showR)); draw(); };
+$("ti").onclick = () => { showI = !showI; $("ti").setAttribute("aria-pressed", String(showI)); draw(); };
+$("l1").onclick = () => setLab("creak"); $("l0").onclick = () => setLab("modal"); $("lu").onclick = () => setLab("unsure");
+for (const [id, v] of TYPES) $(id).onclick = () => setTyp(v);
+$("prev").onclick = () => show(cur - 1); $("next").onclick = nextUnlabelled;
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target.tagName === "INPUT") return; const k = e.key.toLowerCase();
+  const act = { w: () => play("word"), s: () => play("slow"), c: () => play("ctx"), p: () => play("sel"), l: () => $("pl").click(), z: zoomIn, x: zoomOut, k: markSel, g: () => $("tg").click(),
+    1: () => setLab("creak"), 2: () => setLab("modal"), 3: () => setLab("unsure"), 4: () => setTyp("phrase"), 5: () => setTyp("glottal"), 6: () => setTyp("breathy"),
+    arrowright: () => show(cur + 1), arrowleft: () => show(cur - 1), escape: stop }[k];
+  if (act) { act(); e.preventDefault(); }
+});
+new ResizeObserver(() => draw()).observe(viewsEl);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { for (const d of Object.values(cache)) d.img = {}; draw(); });
+new MutationObserver(() => { for (const d of Object.values(cache)) d.img = {}; draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (!HAS_IAIF) $("ti").hidden = true;
+// without the claude.ai result store (a local file): labels in this browser, plus download / load as JSON
+const LKEY = "knarr-inspect:" + PAGE;
+function snapshot() { return ITEMS.filter(i => lab[i.code] || (spans[i.code] || []).length).map(i => ({ code: i.code, word: i.word, src: i.src || null, label: lab[i.code] || null,
+  type: typ[i.code] || null, spans: (spans[i.code] || []).map(([a, b]) => ({ s: +(a - i.vws).toFixed(4), e: +(b - i.vws).toFixed(4) })) })); }
+function localSave() { try { localStorage.setItem(LKEY, JSON.stringify(snapshot())); $("status").textContent = "Saved in this browser."; } catch (e) { $("status").textContent = "Not saved: download the labels before closing."; } }
+function apply(rows) { for (const x of rows) { const it = ITEMS.find(i => i.code === x.code); if (!it) continue; if (x.label) lab[x.code] = x.label; if (x.type) typ[x.code] = x.type;
+  spans[x.code] = (x.spans || []).map(p => [p.s + it.vws, p.e + it.vws]); paint(x.code); } count(); paintButtons(); draw(); }
+function localMode(why) {
+  $("status").textContent = why; $("io").hidden = false;
+  try { const s = localStorage.getItem(LKEY); if (s) apply(JSON.parse(s)); } catch (e) {}
+}
+$("dl").onclick = () => { const b = new Blob([JSON.stringify({ page: PAGE, labels: snapshot() }, null, 1)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = PAGE + "_labels.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+$("ul").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); apply(d.labels || d); localSave(); } catch (x) { $("status").textContent = "That file is not a labels file."; } };
+count(); show(0);
+(async () => {
+  try {
+    if (typeof claude === "undefined") return localMode("Labels are kept in this browser; download them when you are done.");
+    db = await claude.use("db"); if (!db) return localMode("The result store is not available here: labels are kept in this browser.");
+    const timer = setTimeout(() => { $("status").textContent = "The result store does not answer yet; labels are kept here meanwhile."; }, 10000);
+    let first = true;
+    db.collection("labels").onSnapshot(snap => {
+      if (!snap.metadata.fromCache) { clearTimeout(timer); $("status").textContent = "Labels are saved as you go."; }
+      for (const doc of snap.docs) { const x = doc.data(), it = ITEMS.find(i => i.code === x.code); if (!it || busy[x.code]) continue;
+        if (x.label) lab[x.code] = x.label; else delete lab[x.code]; if (x.type) typ[x.code] = x.type; else delete typ[x.code];
+        spans[x.code] = (x.spans || []).map(p => [p.s + it.vws, p.e + it.vws]); paint(x.code); }
+      count(); paintButtons(); if (first && !snap.metadata.fromCache) { first = false; draw(); }
+    }, e => { clearTimeout(timer); $("status").textContent = "The result store stopped (" + e.code + "): labels stay on this page only."; });
+  } catch (e) { localMode("The result store is not available: labels are kept in this browser."); }
+})();
+</script>
+
+</body></html>

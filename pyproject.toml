@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knarr"
-version = "1.3.0"
+version = "1.4.0"
 description = "Knarr and F4N2 creak (vocal fry) word detectors for conversational speech"
 readme = "README.md"
 requires-python = ">=3.9"

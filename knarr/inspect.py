@@ -1,11 +1,13 @@
 """knarr-inspect: a creak listening page for a set of words (one self-contained HTML file; open it in any browser, nothing is uploaded).
 
-    knarr-inspect AUDIO WORDS [-o creak_inspect.html] [--channel N] [--tier NAME] [--scores knarr.tsv] [--pick all|uncertain|creaky]
+    knarr-inspect AUDIO WORDS [-o creak_inspect.html] [--channel N] [--tier NAME] [--scores knarr.tsv] [--pick all|uncertain|creaky|disagree]
                   [--max 200] [--seed 7] [--show-score] [--title TEXT]
 
 WORDS as for `knarr` (TSV/CSV with start, end[, word], or a Praat TextGrid). --scores takes `knarr`'s own output for the same words: with
---pick uncertain only words scored 0.3-0.7 are kept (the ones worth a human ear), with --pick creaky those >= 0.5; --show-score reveals the
-score after the word is labelled. Words shorter than 0.08 s are skipped; --max words are drawn at random (--seed).
+--pick uncertain only words scored 0.3-0.7 are kept (the ones worth a human ear), with --pick creaky those >= 0.5, and with --pick disagree
+the words where Knarr and the context model (knarr.context: creak expected from the lead-up alone) disagree, as in the lab's round 4: 40 %
+"unexpected" (Knarr >= 0.7, context in the file's lowest 20 %), 40 % "missed" (context in the top 10 %, Knarr <= 0.15), 20 % Knarr-unsure
+(0.35-0.65); --show-score reveals the score after the word is labelled. Words shorter than 0.08 s are skipped; --max words are drawn at random (--seed).
 
 Per word the page shows, on one time axis (0 = word start, the word +- 0.25 s): the waveform, zoomable to single glottal cycles, with
 REAPER's glottal pulse marks (min F0 25 Hz, as the voicing gate); a wideband (4 ms, pulses as vertical striations) or narrowband (30 ms,
@@ -104,14 +106,32 @@ def read_scores(path):
     return {round(float(r["start"]), 2): float(r["score"]) for r in rows if r.get("score") not in (None, "", "nan")}
 
 
+def disagree(y, words, cand, sc, n_max, seed):
+    """the words where Knarr and the context model disagree (see the module doc), at most n_max, in time order"""
+    from .context import features, predict
+    import numpy as np
+    p = predict(features(np.asarray(y, np.float64), words)); pc = np.argsort(np.argsort(p)) / max(len(p) - 1, 1)     # context percentile in the file
+    v = {k: sc[round(words[k][1], 2)] for k in cand}; rnd = random.Random(seed)
+    groups = [([k for k in cand if v[k] >= 0.7 and pc[k] <= 0.2], 0.4), ([k for k in cand if pc[k] >= 0.9 and v[k] <= 0.15], 0.4),
+              ([k for k in cand if 0.35 <= v[k] <= 0.65], 0.2)]
+    out = []
+    for g, share in groups:
+        g = [k for k in g if k not in out]; rnd.shuffle(g); out += g[:max(1, round(n_max * share))]
+    return sorted(out[:n_max])
+
+
 def build(audio, words, out, channel=None, scores=None, pick="all", n_max=200, seed=7, show_score=False, title="Creak Inspection"):
     y = load(audio, channel); words = sorted(((w, float(s), float(e)) for w, s, e in words), key=lambda x: x[1])
     cand = [k for k, (w, s, e) in enumerate(words) if e - s >= MIN_DUR and e <= len(y) / SR]
     sc = read_scores(scores) if scores else {}
     if pick != "all":
         if not sc: raise SystemExit("--pick needs --scores (knarr's output for these words)")
+        cand = [k for k in cand if round(words[k][1], 2) in sc]
+    if pick == "disagree":
+        cand = disagree(y, words, cand, sc, n_max, seed)
+    elif pick != "all":
         ok = (lambda v: 0.3 <= v <= 0.7) if pick == "uncertain" else (lambda v: v >= 0.5)
-        cand = [k for k in cand if round(words[k][1], 2) in sc and ok(sc[round(words[k][1], 2)])]
+        cand = [k for k in cand if ok(sc[round(words[k][1], 2)])]
     if len(cand) > n_max: cand = sorted(random.Random(seed).sample(cand, n_max))
     items = []
     for n, k in enumerate(cand):
@@ -134,7 +154,7 @@ def main():
     ap = argparse.ArgumentParser(description="knarr-inspect: a creak listening page for a set of words")
     ap.add_argument("audio"); ap.add_argument("words"); ap.add_argument("-o", "--out", default="creak_inspect.html")
     ap.add_argument("--channel", type=int); ap.add_argument("--tier"); ap.add_argument("--scores")
-    ap.add_argument("--pick", default="all", choices=["all", "uncertain", "creaky"]); ap.add_argument("--max", type=int, default=200)
+    ap.add_argument("--pick", default="all", choices=["all", "uncertain", "creaky", "disagree"]); ap.add_argument("--max", type=int, default=200)
     ap.add_argument("--seed", type=int, default=7); ap.add_argument("--show-score", action="store_true"); ap.add_argument("--title", default="Creak Inspection")
     a = ap.parse_args()
     build(a.audio, read_words(a.words, a.tier), a.out, a.channel, a.scores, a.pick, a.max, a.seed, a.show_score, a.title)

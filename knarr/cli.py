@@ -1,7 +1,8 @@
-"""knarr AUDIO WORDS [--model knarr|f4n2] [--channel N] [--no-gate] [--device cuda|cpu] [-o out.tsv]
+"""knarr AUDIO WORDS [--model knarr|f4n2] [--channel N] [--no-gate] [--context] [--device cuda|cpu] [-o out.tsv]
 
 WORDS: a Praat TextGrid (the first interval tier, or --tier NAME; empty intervals skipped) or a TSV/CSV: with a header naming the columns
-start, end and optionally word (any order, so this tool's own output works), or without a header: start, end[, word]. Writes TSV: word, start, end, score, status, n_support."""
+start, end and optionally word (any order, so this tool's own output works), or without a header: start, end[, word]. Writes TSV: word, start, end, score, status, n_support.
+--context adds a column `context`: how likely creak is on the word from what leads into it alone (knarr.context; needs pyreaper)."""
 import argparse
 import csv
 import sys
@@ -34,11 +35,19 @@ def main():
     ap = argparse.ArgumentParser(description="Knarr / F4N2 creak word detector"); ap.add_argument("audio"); ap.add_argument("words")
     ap.add_argument("--channel", type=int); ap.add_argument("--tier"); ap.add_argument("--no-gate", action="store_true")
     ap.add_argument("--device"); ap.add_argument("-o", "--out"); ap.add_argument("--model", default="knarr", choices=["f4n2", "knarr", "knarr_e"])
+    ap.add_argument("--context", action="store_true", help="add the context model's creak expectation per word (needs pyreaper)")
     a = ap.parse_args()
     from . import CreakDetector
     det = CreakDetector(device=a.device, gate=False if a.no_gate else None, model=a.model); res = det.score_file(a.audio, read_words(a.words, a.tier), channel=a.channel)
-    f = open(a.out, "w", newline="") if a.out else sys.stdout; w = csv.writer(f, delimiter="\t"); w.writerow(["word", "start", "end", "score", "status", "n_support"])
-    for r in res: w.writerow([r["label"] or "", f'{r["start"]:.3f}', f'{r["end"]:.3f}', "" if r["score"] is None else f'{r["score"]:.4f}', r["status"], r["n_support"]])
+    ctx = None
+    if a.context:
+        from .context import context_scores
+        ctx = context_scores(a.audio, [(r["label"], r["start"], r["end"]) for r in res], channel=a.channel)
+    f = open(a.out, "w", newline="") if a.out else sys.stdout; w = csv.writer(f, delimiter="\t")
+    w.writerow(["word", "start", "end", "score", "status", "n_support"] + (["context"] if ctx is not None else []))
+    for k, r in enumerate(res):
+        w.writerow([r["label"] or "", f'{r["start"]:.3f}', f'{r["end"]:.3f}', "" if r["score"] is None else f'{r["score"]:.4f}', r["status"], r["n_support"]]
+                   + ([f"{ctx[k]:.4f}"] if ctx is not None else []))
 
 
 if __name__ == "__main__":

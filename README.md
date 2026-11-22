@@ -77,6 +77,7 @@ for r in det.score_file("dialog.wav", words, channel=0):
 ```bash
 knarr dialog.wav dialog.TextGrid --tier words --channel 0 -o creak.tsv
 knarr dialog.wav words.tsv --model f4n2
+knarr dialog.wav words.tsv --context -o creak.tsv       # adds a `context` column (needs pyreaper)
 ```
 
 The word list is either a Praat TextGrid (its first interval tier, or the one named with `--tier`) or a TSV/CSV file with a header naming
@@ -116,7 +117,8 @@ stretch you drag across. Labels are creaky (any part of the word) / not creaky /
 breathy-creaky) and any number of marked creaky stretches inside the word. They are kept in the browser; **Download labels (JSON)** saves
 them as `[{code, word, src: {audio, start, end}, label, type, spans: [{s, e}]}]`, with span times in seconds from the word start.
 
-- `--pick uncertain` keeps the words Knarr scored 0.3–0.7, the ones worth a human ear; `--pick creaky` keeps those ≥ 0.5. Both need `--scores`.
+- `--pick uncertain` keeps the words Knarr scored 0.3–0.7, the ones worth a human ear; `--pick creaky` keeps those ≥ 0.5; `--pick disagree`
+  keeps the words where Knarr and the context model disagree (see below). All need `--scores`.
 - `--show-score` shows Knarr's score only after you have labelled the word, so it does not steer you.
 - `--max` (default 200) caps the number of words, drawn at random (`--seed`); `--channel` and `--tier` work as for `knarr`.
 - With Huanchen Cai's [VoiceMapping](https://github.com/HuanchenCai/VoiceMapping) installed (importable as `voicemap`), its audio-only
@@ -147,6 +149,25 @@ keeps the score level (average change -0.00, mean absolute change 0.07 against 0
 - **Other languages:** F4N2's labels are mostly English, and its direct predecessor F4 was tested on unseen English speakers (EARS, AUROC 0.87);
   Knarr was tested only on Swedish. A multilingual Knarr (Norwegian, Danish,
   German frame targets) did not improve Swedish and was not adopted; nothing has been tested on other languages yet.
+
+## Where creak is expected: the context model
+
+`knarr.context` scores how likely creak is on a word from **what leads into it alone**, never from the word's own voice: the 0.5 s
+before it (F0 and energy relative to the speaker, and whether they fall), the pauses before and after it, its position in the utterance,
+its length, whether it is a filler, and the speech rate. It was trained to predict Knarr's decisions on 2.1 million words of 34 Swedish
+corpora and reaches AUC 0.76 against Knarr on held-out speakers (0.69 against the Swedish test set's labels, where Knarr reaches 0.88).
+It is not a creak detector. It is a second, independent view: the words where it and Knarr disagree are the most informative ones to
+check by ear (`knarr-inspect --pick disagree`): creak Knarr hears where nothing in the context leads one to expect it (noise, laughter,
+or real but unusual creak), and expected creak that Knarr does not hear.
+
+```python
+from knarr.context import context_scores
+context_scores("dialog.wav", [("ja", 12.31, 12.52), ("precis", 12.60, 13.14)], channel=0)   # one value per word, 0-1
+```
+
+Adding the context score to Knarr's own score does not raise the test-set AUC (0.874-0.880 against 0.881), and neither did a model of the
+speaker's lung state built from detected breaths: across 330 hours of Swedish conversation, how much air is left does not predict creak
+beyond where the word sits in the phrase. The study is in [docs/REPORT.md](docs/REPORT.md).
 
 ## Training data
 
@@ -189,6 +210,12 @@ corpus links and licences are in the F4N2 report (`formant_tracker/docs/F4N2_CRE
   plus noise; the targets stay those of the clean audio), and without 28 Spontal channels (and the people on them) that are reserved as a
   test set in the F4N2 project. It replaced Knarr e by a rule fixed before training (development AUC no more than 0.01 lower, smaller score
   shift under degradation) and was then tested once. `tools/export_knarr_v.py` writes its weights.
+- Round 3 (2026-11-21): 190 words chosen by uncertainty (the certainty detector Tvek; dialogue, podcast and quiz-game speech), 15/15
+  hidden repeats labelled the same. A Knarr trained on v2's data plus these 145 new words (ablation w) reached 0.889 on the test set but
+  0.874 pool-weighted (v2: 0.881 / 0.881): within noise, not adopted.
+- Context model (1.4.0, 2026-11-22): `knarr/weights/context_v1.json`, a one-hidden-layer net on the lead-up features, trained on Knarr v2's
+  decisions (>= 0.5) for 800,000 words sampled from 2.1 M words of 34 Swedish corpora (speakers held out for the test set and the F4N2 test
+  channels never used); details and the lung-state study in [docs/REPORT.md](docs/REPORT.md).
 - Weights: `knarr/weights/*.npz` with SHA-256 manifests checked at load time.
 
 Questions and bug reports: Joakim Gustafson, KTH Speech, Music and Hearing.

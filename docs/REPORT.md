@@ -111,6 +111,12 @@ speaker, the state taken without that stretch's own creak evidence:
 | lung state (volume, P(low)) | 0.532 (0.562 when creak elsewhere informs the state) |
 | both | 0.602 |
 
+**Checked against respiration belts (2026-11-25).** BinD (Science Tokyo Multimodal Dialogue Corpus with Respiration Signals; Funakoshi 2025, NII IDR, doi 10.32130/rdata.11.1): 72 Japanese speakers in 36 pairs with elastic chest and abdominal belts. Measured breathing does not change the creak result: with the silent-refill
+probability fixed at the belt-measured curve (0.17 / 0.44 / 0.75 at 0.5 / 1 / 2 s quiet pauses, against the EM estimate's 0.35 / 0.50 /
+0.65), the lung state alone gives AUC 0.576 (was 0.562) and with the stretch features 0.605 (0.602). The detector behind the lung state
+hears only about a quarter of the inhalations in pauses with table microphones (precision 0.87), which limits any lung-state model built
+on audio alone; see the Kipp report, section 3.4.
+
 ## 4. Rounds 3 and 4
 
 **Round 3** (2026-11-21): 190 words sampled by Tvek's uncertainty (utterance ends of uncertain and certain utterances, fillers, medial and

@@ -1,6 +1,6 @@
 # Knarr: where creak occurs, and what the lungs have to do with it
 
-Technical report, KTH Speech, Music and Hearing, 2026-11-22, section 7 added 2026-11-26 (Knarr 1.4.1). Joakim Gustafson.
+Technical report, KTH Speech, Music and Hearing, 2026-11-22, section 7 added 2026-11-26, 7.1–7.2 the same day (Knarr 1.4.1). Joakim Gustafson.
 
 ## Abstract
 
@@ -173,14 +173,64 @@ Creak is most frequent in neutral and sad acted speech and least in happy and an
 the former; in every set it is two to six times more frequent on the utterance-final word. The two detectors agree on 94–98 % of words, so
 the table describes them more than it validates them: on English they share any bias, and labels are needed.
 
-**Round 6** (291 words, labelling in progress). Pools: Knarr 0.3–0.7 (160), the three seeds spread by ≥ 0.4 (50), Knarr and F4N2 apart by
+**Round 6** (291 words, labelled 2026-11-26: 118 creak, 163 modal, 7 no speech, 3 unsure; 115 creak words with marked stretches). Pools: Knarr 0.3–0.7 (160), the three seeds spread by ≥ 0.4 (50), Knarr and F4N2 apart by
 ≥ 0.5 (36 found of 60 asked), anchors ≥ 0.85 and ≤ 0.03 (15 each) and 15 hidden repeats of band words; words ≥ 0.08 s, at most 2 per
 utterance and 12 per speaker, shares ESD 40 % (emotions in turn), MSP-Podcast 45 %, MAGES 15 %. Scores are not shown. The words are on two
 pages with the same codes: a listening page (word ± 2 s, creak / modal / can't tell / bad clip) and the inspection page of section 4 built
 with `knarr.inspect.item` (`knarr-inspect --parts 2`, since the 291 words with clips come to 15 MB). Building the second page found a bug in
 the inspection page: it read each view's height back from the canvas after setting the canvas's pixel height, so on a screen with a pixel
 ratio of 2 every redraw doubled the view, and a resize observer redrew it again; 1.4.1 keeps the height apart and redraws on width changes
-only. The labels will fine-tune Knarr on English under the same rules as the Swedish rounds (never the test set).
+only. The labels fine-tune Knarr on English under the same rules as the Swedish rounds (never the test set).
+
+### 7.1 Low pitch or creak: a labelling problem
+
+Labelling round 6, the annotator found the hardest decision to be *when low pitch becomes creak*. The hidden repeats show it: the same
+word got the same label twice in only 9 of 15 cases, and the four creak words labelled modal the second time were all lower than the
+speaker's usual pitch but regular. To see which cues the labels follow, every round-6 word was measured with REAPER (as the inspection
+page draws it) against its speaker's median F0 (all voiced frames of up to 40 of the speaker's utterances):
+
+| cue (word) | AUC for the creak label | creak median | modal median |
+| --- | ---: | ---: | ---: |
+| F0 median / speaker median | 0.66 (lower = creak) | 0.84 | 0.95 |
+| F0 10th percentile / speaker median | 0.64 (lower = creak) | 0.68 | 0.78 |
+| cycles below 0.55 × speaker median | 0.59 | 0 | 0 |
+| periods longer than two speaker periods | 0.58 | 0 | 0 |
+| median jitter of consecutive periods | 0.58 | 0.024 | 0.018 |
+| consecutive periods differing by > 20 % | 0.54 | 0.03 | 0.02 |
+| Knarr v2 | 0.64 | 0.58 | 0.45 |
+
+Inside the stretches the annotator marked as creaky, F0 is at a median 0.81 of the speaker's, yet only 26 % of the stretches have any of
+the classic creak cues (≥ 20 % of cycles below 0.55 ×, ≥ 20 % period jumps, ≥ 10 % separated pulses). Of the words that are low (10th
+percentile < 0.75 × speaker) but regular (< 10 % jumps), 46 % were called creak, against 65 % of the low and irregular words and 33 % of
+the words that are neither. So in round 6 the label followed *lowered pitch relative to the speaker* more than period irregularity, and
+the low-but-regular zone was split almost evenly. This is not unusual: creak is defined by voice quality (irregular, widely spaced,
+damped pulses, often low), but low F0 is its most audible correlate, and the line between the low end of modal voice and creak is not
+sharp in the literature either. REAPER also marks pulses less reliably in creak than in modal voice, so the irregularity cues
+underestimate it; the labels may be right where the cues are silent.
+
+For a detector this matters twice. Labels that follow pitch lowering teach it to call phrase-final low pitch creak, which is what
+Knarr's own errors look like (section 3: creak is most frequent at the phrase end, where pitch falls anyway). And an evenly split
+boundary zone caps the agreement any detector can reach on such words.
+
+**Proposed fix.** (1) A stated rule: low pitch alone is not creak; a word is creaky when at least one of (a) single pulses are audible at
+half speed, a rattle instead of a tone, (b) the cycles are irregular (period jumps, alternation), (c) pulses are separated by near-silence
+in the waveform or the pitch falls below 0.55 × the speaker's median. (2) A third label, *low, not creak*, for words that are lower than the
+speaker usually is but regular and tone-like; it is trained as modal but kept apart, so the detector's confusion of low pitch with creak
+can be measured and, if needed, weighted. (3) Page aids that make the rule checkable: the speaker's median F0 and 0.75 × and 0.55 × of it
+on the pitch view, and the cue numbers (F0 relative to the speaker, cycles below 0.55 ×, period jumps, gaps) for the word, the selection
+and each marked stretch. (4) Words sampled by these cues rather than by a detector, so the boundary is labelled densely. A later option on
+the model side is a separate low-pitch head (F0 relative to the speaker as a frame target), so the creak head need not absorb pitch
+lowering.
+
+### 7.2 Round 7: the low-pitch boundary
+
+163 new English words from the same three corpora (55,424 candidates: words ≥ 0.08 s with ≥ 6 REAPER cycles, round-6 words excluded; 972
+speakers), sampled by the cues above (seed 7; at most 2 per utterance and 8 per speaker): low but regular (10th percentile 0.55–0.85 ×
+speaker, < 10 % cycles below 0.55 ×, < 10 % jumps, no gaps; 70), low and irregular (10th percentile < 0.8 × and ≥ 20 % jumps or ≥ 10 % gaps;
+30), very low (≥ 30 % of cycles below 0.55 ×, < 15 % jumps, possible vocal fry; 20), irregular at normal pitch (median ≥ 0.9 ×, ≥ 20 % jumps;
+15), modal anchors (median 0.95–1.15 ×, < 5 % jumps, Knarr < 0.05; 10), the six round-6 words whose repeat got another label (new codes),
+and 12 hidden repeats of low-but-regular words. Labels: creak, modal, low not creak, unsure, no speech, with creaky stretches as before. The
+page is the inspection page with the rule, the reference lines and the cue readout above; items carry `spk_f0`, the speaker's median F0.
 
 ## 8. Reproduction
 
@@ -188,5 +238,6 @@ The analysis scripts (`lung2_data.py`, `lung2_words.py`, `lung2_fit.py`, `knarr_
 `lung3_hmm.py`, `lung3_planner.py`, `creak_view_data.py round4`) are kept with the lab's non-public analysis code, as the corpora are not
 redistributable. The shipped model and the code that uses it are in this repository. Section 7: `en_prep.py` (sampling, MFA corpus
 directories), `en_chain.sh` (alignment, then `en_score.py`: `CreakDetector(model="knarr")` and `"f4n2"`, `.score(y, sr, words)` per
-utterance), `en_select.py report|select` (the table above; the round 6 pools) and `en_inspect.py` (`knarr.inspect.item` per word), kept
+utterance), `en_select.py report|select` (the table above; the round 6 pools), `en_inspect.py` (`knarr.inspect.item` per word),
+`en_lowpitch.py` (section 7.1's cues, REAPER via `knarr.inspect.reaper`) and `en_round7.py` (section 7.2's pools and items), kept
 with the same analysis code; ESD, MSP-Podcast and MAGES are licensed separately.

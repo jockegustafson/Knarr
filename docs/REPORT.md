@@ -1,6 +1,6 @@
 # Knarr: where creak occurs, and what the lungs have to do with it
 
-Technical report, KTH Speech, Music and Hearing, 2026-11-22 (Knarr 1.4.0). Joakim Gustafson.
+Technical report, KTH Speech, Music and Hearing, 2026-11-22, section 7 added 2026-11-26 (Knarr 1.4.1). Joakim Gustafson.
 
 ## Abstract
 
@@ -149,8 +149,44 @@ speaker's sampled utterances).
 - The context model is a sampling tool, not a detector; its value for Knarr comes through labels on the words it disagrees with.
 - All results are on Swedish; the corpora are broadcast and conversational, with uneven audio.
 
-## 7. Reproduction
+## 7. English: creak in emotional, podcast and read speech
+
+Knarr was trained on Swedish (plus F4N2's mixed labels). To see where it stands on English, and to get English words worth labelling,
+we scored 63,178 aligned words with Knarr v2 and F4N2 (2026-11-25).
+
+**Data** (seed 7). ESD English speakers 0011–0020, acted Angry / Happy / Neutral / Sad / Surprise, 40 utterances per speaker and emotion
+(2,000); MSP-Podcast, 3,000 transcribed segments of natural podcast speech chosen for emotional content; MAGES read sentences, the 14
+speakers whose audio is present, 181 utterances. Words: Montreal Forced Aligner 3 with `english_us_arpa` (acoustic model and dictionary;
+`--beam 100 --retry_beam 400`). Knarr v2 without the voicing gate (as trained), F4N2 gated (as released); a word counts as creaky at ≥ 0.5.
+
+| set | words | creaky (Knarr) | F4N2 | agree | utterance-final | other words |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| ESD Neutral | 2,464 | 22.0 % | 23.8 % | 94.0 % | 49.7 % | 16.6 % |
+| ESD Sad | 2,548 | 17.3 % | 20.4 % | 95.1 % | 35.0 % | 14.1 % |
+| ESD Surprise | 2,509 | 11.4 % | 10.6 % | 98.1 % | 25.0 % | 8.8 % |
+| ESD Angry | 2,495 | 11.0 % | 9.6 % | 97.0 % | 39.5 % | 5.6 % |
+| ESD Happy | 2,540 | 9.4 % | 9.3 % | 97.3 % | 27.0 % | 6.2 % |
+| MSP-Podcast | 48,945 | 10.5 % | 8.5 % | 95.3 % | 24.7 % | 9.6 % |
+| MAGES | 1,677 | 16.0 % | 16.6 % | 95.8 % | 59.8 % | 9.2 % |
+
+Creak is most frequent in neutral and sad acted speech and least in happy and angry speech, as expected from the lower and falling pitch of
+the former; in every set it is two to six times more frequent on the utterance-final word. The two detectors agree on 94–98 % of words, so
+the table describes them more than it validates them: on English they share any bias, and labels are needed.
+
+**Round 6** (291 words, labelling in progress). Pools: Knarr 0.3–0.7 (160), the three seeds spread by ≥ 0.4 (50), Knarr and F4N2 apart by
+≥ 0.5 (36 found of 60 asked), anchors ≥ 0.85 and ≤ 0.03 (15 each) and 15 hidden repeats of band words; words ≥ 0.08 s, at most 2 per
+utterance and 12 per speaker, shares ESD 40 % (emotions in turn), MSP-Podcast 45 %, MAGES 15 %. Scores are not shown. The words are on two
+pages with the same codes: a listening page (word ± 2 s, creak / modal / can't tell / bad clip) and the inspection page of section 4 built
+with `knarr.inspect.item` (`knarr-inspect --parts 2`, since the 291 words with clips come to 15 MB). Building the second page found a bug in
+the inspection page: it read each view's height back from the canvas after setting the canvas's pixel height, so on a screen with a pixel
+ratio of 2 every redraw doubled the view, and a resize observer redrew it again; 1.4.1 keeps the height apart and redraws on width changes
+only. The labels will fine-tune Knarr on English under the same rules as the Swedish rounds (never the test set).
+
+## 8. Reproduction
 
 The analysis scripts (`lung2_data.py`, `lung2_words.py`, `lung2_fit.py`, `knarr_context_fit.py`, `lung3_tables.py`, `lung3_balance.py`,
 `lung3_hmm.py`, `lung3_planner.py`, `creak_view_data.py round4`) are kept with the lab's non-public analysis code, as the corpora are not
-redistributable. The shipped model and the code that uses it are in this repository.
+redistributable. The shipped model and the code that uses it are in this repository. Section 7: `en_prep.py` (sampling, MFA corpus
+directories), `en_chain.sh` (alignment, then `en_score.py`: `CreakDetector(model="knarr")` and `"f4n2"`, `.score(y, sr, words)` per
+utterance), `en_select.py report|select` (the table above; the round 6 pools) and `en_inspect.py` (`knarr.inspect.item` per word), kept
+with the same analysis code; ESD, MSP-Podcast and MAGES are licensed separately.

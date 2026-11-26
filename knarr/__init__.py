@@ -7,5 +7,5 @@
 from .detector import CreakDetector
 from .model import INSUFFICIENT_SUPPORT
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 __all__ = ["CreakDetector", "INSUFFICIENT_SUPPORT", "__version__"]

@@ -1,7 +1,7 @@
 """knarr-inspect: a creak listening page for a set of words (one self-contained HTML file; open it in any browser, nothing is uploaded).
 
     knarr-inspect AUDIO WORDS [-o creak_inspect.html] [--channel N] [--tier NAME] [--scores knarr.tsv] [--pick all|uncertain|creaky|disagree]
-                  [--max 200] [--seed 7] [--show-score] [--title TEXT]
+                  [--max 200] [--seed 7] [--show-score] [--title TEXT] [--parts N]
 
 WORDS as for `knarr` (TSV/CSV with start, end[, word], or a Praat TextGrid). --scores takes `knarr`'s own output for the same words: with
 --pick uncertain only words scored 0.3-0.7 are kept (the ones worth a human ear), with --pick creaky those >= 0.5, and with --pick disagree
@@ -18,6 +18,8 @@ down, so single pulses become audible), the 2.5 s before it, a loop, or a dragge
 type (phrase creak, glottal onset or stop, breathy-creaky) and any number of marked creaky stretches inside the word. They are kept in
 the browser (localStorage) and saved with "Download labels (JSON)": [{code, word, src: {audio, start, end}, label, type, spans: [{s, e}]}],
 span times in s from the word start.
+With --parts N the words go to N script files beside the page (<out>_items_<k>.js, loaded by the page), for hosts that cap the size of
+one file; a page of 300 words with its clips is about 15 MB.
 If Huanchen Cai's VoiceMapping (github.com/HuanchenCai/VoiceMapping) is importable as `voicemap`, its audio-only IAIF cycle starts are added
 as a second pulse layer (F0 30-500 Hz, no clarity filter). The context clip is mp3 when ffmpeg is on the PATH, otherwise 16 kHz WAV.
 Needs pyreaper (pip install "knarr[gate]")."""
@@ -120,7 +122,7 @@ def disagree(y, words, cand, sc, n_max, seed):
     return sorted(out[:n_max])
 
 
-def build(audio, words, out, channel=None, scores=None, pick="all", n_max=200, seed=7, show_score=False, title="Creak Inspection"):
+def build(audio, words, out, channel=None, scores=None, pick="all", n_max=200, seed=7, show_score=False, title="Creak Inspection", parts=0):
     y = load(audio, channel); words = sorted(((w, float(s), float(e)) for w, s, e in words), key=lambda x: x[1])
     cand = [k for k, (w, s, e) in enumerate(words) if e - s >= MIN_DUR and e <= len(y) / SR]
     sc = read_scores(scores) if scores else {}
@@ -143,11 +145,20 @@ def build(audio, words, out, channel=None, scores=None, pick="all", n_max=200, s
     t = resources.files("knarr").joinpath("inspect.html").read_text(encoding="utf-8")
     page = "".join(c if c.isalnum() else "_" for c in f"{Path(audio).stem}_{Path(out).stem}")[:80]
     note = ("The score Knarr gave the word is shown after you label it." if show_score else "")
+    data = json.dumps(items, ensure_ascii=False)
+    if parts:                          # the items in script files beside the page (hosts with a size limit per file)
+        names, k = [], -(-len(items) // parts)
+        for j in range(parts):
+            name = f"{Path(out).stem}_items_{j + 1}.js"; names.append(name)
+            (Path(out).parent / name).write_text("(window.ITEMS_PARTS = window.ITEMS_PARTS || []).push("
+                                                 + json.dumps(items[j * k:(j + 1) * k], ensure_ascii=False) + ");\n", encoding="utf-8")
+        data = "[].concat(...(window.ITEMS_PARTS || []))"
+        assert t.count("\n<script>\n") == 1; t = t.replace("\n<script>\n", "\n" + "".join(f'<script src="{n}"></script>\n' for n in names) + "<script>\n")
     for a, b in (("/*TITLE*/", title), ("/*NOTE*/", note), ("/*F0SRC*/", "REAPER F0"),
-                 ("/*ITEMS*/[]", json.dumps(items, ensure_ascii=False)), ('/*PAGE*/"page"', json.dumps(page))):
+                 ("/*ITEMS*/[]", data), ('/*PAGE*/"page"', json.dumps(page))):
         assert a in t, a; t = t.replace(a, b)
     Path(out).write_text(t, encoding="utf-8")
-    print(f"wrote {out}: {len(items)} words, {Path(out).stat().st_size / 1e6:.1f} MB", file=sys.stderr)
+    print(f"wrote {out}: {len(items)} words, {Path(out).stat().st_size / 1e6:.1f} MB" + (f" + {parts} item files" if parts else ""), file=sys.stderr)
 
 
 def main():
@@ -156,8 +167,9 @@ def main():
     ap.add_argument("--channel", type=int); ap.add_argument("--tier"); ap.add_argument("--scores")
     ap.add_argument("--pick", default="all", choices=["all", "uncertain", "creaky", "disagree"]); ap.add_argument("--max", type=int, default=200)
     ap.add_argument("--seed", type=int, default=7); ap.add_argument("--show-score", action="store_true"); ap.add_argument("--title", default="Creak Inspection")
+    ap.add_argument("--parts", type=int, default=0, help="write the words to N script files beside the page (for hosts with a per-file size limit)")
     a = ap.parse_args()
-    build(a.audio, read_words(a.words, a.tier), a.out, a.channel, a.scores, a.pick, a.max, a.seed, a.show_score, a.title)
+    build(a.audio, read_words(a.words, a.tier), a.out, a.channel, a.scores, a.pick, a.max, a.seed, a.show_score, a.title, a.parts)
 
 
 if __name__ == "__main__":

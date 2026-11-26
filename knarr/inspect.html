@@ -183,7 +183,8 @@ function specImage(d, s, key) {
 function hex(c) { const m = c.replace("#", ""); return [0, 2, 4].map(i => parseInt(m.slice(i, i + 2), 16)); }
 
 // ---------- drawing ----------
-function setup(cv) { const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, h = +cv.getAttribute("height");
+function setup(cv) { const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, h = +(cv.dataset.h = cv.dataset.h || cv.getAttribute("height"));
+  // the CSS height is read once: setting cv.height rewrites the height attribute, so reading it back made every redraw grow the canvas by the pixel ratio
   if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); } cv.height = h * dpr; cv.style.height = h + "px";
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); return { g, W: r.width, H: h }; }
 const X = (t, W) => (t - view[0]) / (view[1] - view[0]) * W;
@@ -376,7 +377,7 @@ document.addEventListener("keydown", e => {
     arrowright: () => show(cur + 1), arrowleft: () => show(cur - 1), escape: stop }[k];
   if (act) { act(); e.preventDefault(); }
 });
-new ResizeObserver(() => draw()).observe(viewsEl);
+let lastW = 0; new ResizeObserver(() => { const w = viewsEl.clientWidth; if (w !== lastW) { lastW = w; draw(); } }).observe(viewsEl);   // width changes only
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { for (const d of Object.values(cache)) d.img = {}; draw(); });
 new MutationObserver(() => { for (const d of Object.values(cache)) d.img = {}; draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 if (!HAS_IAIF) $("ti").hidden = true;

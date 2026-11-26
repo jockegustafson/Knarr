@@ -121,6 +121,8 @@ them as `[{code, word, src: {audio, start, end}, label, type, spans: [{s, e}]}]`
   keeps the words where Knarr and the context model disagree (see below). All need `--scores`.
 - `--show-score` shows Knarr's score only after you have labelled the word, so it does not steer you.
 - `--max` (default 200) caps the number of words, drawn at random (`--seed`); `--channel` and `--tier` work as for `knarr`.
+- `--parts N` writes the words to N script files beside the page (`<page>_items_<k>.js`), for web hosts that cap the size of one file
+  (300 words with their clips come to about 15 MB); keep the files together.
 - With Huanchen Cai's [VoiceMapping](https://github.com/HuanchenCai/VoiceMapping) installed (importable as `voicemap`), its audio-only
   IAIF glottal cycles are added as a second pulse layer. It needs pyreaper (`pip install "knarr[gate]"`) and uses ffmpeg for the
   listening clips when it is on the PATH.
@@ -216,6 +218,9 @@ corpus links and licences are in the F4N2 report (`formant_tracker/docs/F4N2_CRE
 - Context model (1.4.0, 2026-11-22): `knarr/weights/context_v1.json`, a one-hidden-layer net on the lead-up features, trained on Knarr v2's
   decisions (>= 0.5) for 800,000 words sampled from 2.1 M words of 34 Swedish corpora (speakers held out for the test set and the F4N2 test
   channels never used); details and the lung-state study in [docs/REPORT.md](docs/REPORT.md).
+- English (1.4.1, 2026-11-26): Knarr v2 and F4N2 measured on 63,178 aligned words of acted emotional (ESD), podcast (MSP-Podcast) and
+  read (MAGES) English; a 291-word labelling round from the words where Knarr is unsure is under way ([docs/REPORT.md](docs/REPORT.md),
+  section 7). The inspection page no longer grows its views on high-density screens.
 - Weights: `knarr/weights/*.npz` with SHA-256 manifests checked at load time.
 
 Questions and bug reports: Joakim Gustafson, KTH Speech, Music and Hearing.

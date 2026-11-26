@@ -1,6 +1,6 @@
 # Knarr: where creak occurs, and what the lungs have to do with it
 
-Technical report, KTH Speech, Music and Hearing, 2026-11-22, section 7 added 2026-11-26, 7.1–7.2 the same day (Knarr 1.4.1). Joakim Gustafson.
+Technical report, KTH Speech, Music and Hearing, 2026-11-22, section 7 added 2026-11-26, 7.1–7.3 the same day (Knarr 1.4.1). Joakim Gustafson.
 
 ## Abstract
 
@@ -232,6 +232,54 @@ speaker, < 10 % cycles below 0.55 ×, < 10 % jumps, no gaps; 70), low and irregu
 and 12 hidden repeats of low-but-regular words. Labels: creak, modal, low not creak, unsure, no speech, with creaky stretches as before. The
 page is the inspection page with the rule, the reference lines and the cue readout above; items carry `spk_f0`, the speaker's median F0.
 
+### 7.3 Knarr n: fine-tuned on round 6
+
+Knarr n is Knarr z (the v3 candidate: v2 + rounds 3 and 4 + EGG windows of the EGG corpora's training speakers) trained further with the
+268 round-6 words labelled creak or modal (115 creak; hidden repeats, unsure and no-speech words left out), under the rules of the Swedish
+rounds: round-6 rows weighted as the other rounds, a creak word with marked stretches trained on the stretches' extent, development
+speakers (crc32 % 5 = 0) used only to choose the step, never the Swedish test set or the reserved Spontal channels; 3 seeds, 2,000 steps,
+the best development step kept. English is evaluated by speaker-fold cross-validation: the words are split into three folds by speaker,
+and each word is scored by the three-seed model trained without its fold. All other detectors are scored as before (centred 150-frame
+window, pooled top-3 frames, no voicing gate; CreaPy and DeepFry as in the creak bench).
+
+| detector | English round 6 (CV) | 95 % CI | ESD | MSP-Podcast | MAGES |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Knarr n | 0.713 | 0.66–0.77 | 0.695 | 0.702 | 0.726 |
+| Knarr x | 0.716 | 0.65–0.78 | 0.669 | 0.702 | 0.780 |
+| Knarr w | 0.692 | | | | |
+| Knarr z | 0.686 | 0.62–0.75 | 0.684 | 0.679 | 0.691 |
+| Knarr v2 (released) | 0.664 | 0.60–0.73 | 0.659 | 0.637 | 0.631 |
+| DeepFry (creak where voiced) | 0.616 | | | | |
+| F4N2 | 0.582 | 0.50–0.66 | 0.613 | 0.572 | 0.643 |
+| CreaPy (share of frames ≥ 0.75) | 0.508 | | | | |
+
+Paired speaker bootstrap: n − z +0.027 (−0.003 to +0.059), n − v2 +0.049 (+0.005 to +0.096), n − F4N2 +0.130. The round-6 words were
+chosen where Knarr v2 was unsure or disagreed with F4N2, so these figures describe hard words, not English speech at large; the
+annotator's own repeat agreement (9 of 15) also caps them. n trained on all folds scores 0.987 on the same words: it fits them, so only the
+cross-validated figure is a test.
+
+| set | Knarr v2 | Knarr x | Knarr z | Knarr n | best other |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Swedish test set | 0.881 | 0.894 | 0.895 | 0.895 | DeepFry 0.793 |
+| Swedish rounds (development speakers) | 0.862 | 0.868 | 0.864 | 0.870 | |
+| DanPASS stød (da) | 0.734 | 0.730 | 0.743 | 0.741 | DeepFry 0.727 |
+| Buckeye tags (en) | 0.567 | 0.564 | 0.556 | 0.556 | DeepFry 0.814 |
+| AVID (en, EGG) | 0.976 | 0.971 | 0.994 | 0.994 | |
+| CMU ARCTIC jmk (en, EGG) | 0.791 | 0.764 | 0.782 | 0.795 | |
+| PTDB-TUG (en, EGG) | 0.828 | 0.812 | 0.839 | 0.839 | DeepFry 0.858 |
+| TAVA (en, EGG) | 0.694 | 0.606 | 0.879 | 0.892 | |
+| Saarbrücken healthy (de, EGG) | 0.891 | 0.858 | 0.934 | 0.931 | |
+| FLombard (fr, EGG) | 0.882 | 0.874 | 0.915 | 0.914 | |
+| mean, held-out human-labelled sets (without round 6) | 0.761 | 0.764 | 0.764 | 0.766 | |
+| mean, held-out EGG sets | 0.844 | 0.814 | 0.890 | 0.894 | |
+
+On the Swedish test set's pool-weighted AUC (each word weighted by its stratum's share), n is 0.856 against z's 0.874.
+
+**Reading.** The English labels help a little on English hard words (+0.03 over z) and do not hurt elsewhere: Swedish, Danish and the EGG
+sets are unchanged within noise, with the best means of all versions. But x, which saw no English labels, is as good as n on round 6, so
+the gain over the earlier versions is not yet clear. Knarr n is not released; the plan is to train once more on rounds 6 and 7 together,
+round 7 labelled with the rule of section 7.1 and the *low, not creak* class kept apart, and to report it against the same tables.
+
 ## 8. Reproduction
 
 The analysis scripts (`lung2_data.py`, `lung2_words.py`, `lung2_fit.py`, `knarr_context_fit.py`, `lung3_tables.py`, `lung3_balance.py`,
@@ -239,5 +287,6 @@ The analysis scripts (`lung2_data.py`, `lung2_words.py`, `lung2_fit.py`, `knarr_
 redistributable. The shipped model and the code that uses it are in this repository. Section 7: `en_prep.py` (sampling, MFA corpus
 directories), `en_chain.sh` (alignment, then `en_score.py`: `CreakDetector(model="knarr")` and `"f4n2"`, `.score(y, sr, words)` per
 utterance), `en_select.py report|select` (the table above; the round 6 pools), `en_inspect.py` (`knarr.inspect.item` per word),
-`en_lowpitch.py` (section 7.1's cues, REAPER via `knarr.inspect.reaper`) and `en_round7.py` (section 7.2's pools and items), kept
+`en_lowpitch.py` (section 7.1's cues, REAPER via `knarr.inspect.reaper`), `en_round7.py` (section 7.2's pools and items) and, for 7.3,
+`knarr_data_r6.py` (round-6 clips and frame targets), `knarr_train.py n <seed> [steps] [fold]`, `knarr_en_eval.py` and the bench scripts, kept
 with the same analysis code; ESD, MSP-Podcast and MAGES are licensed separately.
